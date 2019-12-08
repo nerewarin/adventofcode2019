@@ -12,6 +12,7 @@ class DigitalSendingNetwork:
         with open('inputs/8.txt') as f:
             inputs = [[int(symbol) for symbol in row] for row in f.read().split('\n')][0]
 
+        self._inputs = inputs
         self.wide = 25
         self.tall = 6
 
@@ -36,34 +37,31 @@ class DigitalSendingNetwork:
 
     def draw(self):
         black, white, transparent = range(3)
-        # result = [[transparent for dummy_col in range(self.wide)] for dummy_row in range(self.tall)]
         result = [transparent for x in range(self.layers_size)]
         for layer in self.layers:
             for idx, color in enumerate(layer):
                 if result[idx] is transparent:
                     result[idx] = color
-
+        #
         code2color = {
-            black: '#',
-            # black: ' ',
+            # black: '#',
+            black: ' ',
             # black: u"\u2588",
             # white: u"\u2B1C",
-            white: ' ',
-            # white: '#',
+            # white: ' ',
+            white: '#',
             # white: u"\u25AF",
             transparent: ''
         }
         res_str = ''
-        res_str2 = ''
         for row in range(self.tall):
             for col in range(self.wide):
-                cell_code = result[row * self.tall + col]
+                idx = row * self.wide + col
+                cell_code = result[idx]
                 color = code2color[cell_code]
                 res_str += color
-                res_str2 += str(cell_code)
             res_str += '\n'
-            res_str2 += '\n'
-        print(res_str2)
+
         return res_str
 
 
