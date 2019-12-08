@@ -57,7 +57,10 @@ class Amplifier:
 
             param1 = self.inputs[curr_idx + 1]
             param2 = self.inputs[curr_idx + 2]
-            param3 = self.inputs[curr_idx + 3]
+            try:
+                param3 = self.inputs[curr_idx + 3]
+            except KeyError:
+                param3 = None  # dirty but who cares
             if op < 3:
                 shift = 4
                 if op == 1:
@@ -99,41 +102,16 @@ class Amplifier:
             curr_idx += shift
 
 
-# def part1():
-#     max_res = float('-infinity')
-#
-#     phases_combinations = itertools.permutations([0, 1, 2, 3, 4])
-#     # phases_combinations = [
-#     #     [9, 8, 7, 6, 5]  # test 1
-#     #     # [0,1,2,3,4] # test 2
-#     #     # [1,0,4,3,2] # test 3
-#     # ]
-#
-#
-#     for phases in phases_combinations:
-#         input = [0]
-#         for phase in phases:
-#             outputs = []
-#             for inp in inputs:
-#                 for output in intcode_computer(phase, inp):
-#                     outputs.append(output)
-#
-#             inputs = outputs
-#
-#         max_res = max(max_res, max(inputs))
-#
-#     return max_res
-
-
 def part2():
-    phases_combinations = itertools.permutations([0, 1, 2, 3, 4])
-    phases_combinations = [
-        [9, 8, 7, 6, 5]
-    ]
+    phases_combinations = itertools.permutations(list(range(5, 10)))
     last_system_outputs = []
+    inp = None
+    # tests
+    # phases_combinations, inp = [[[9, 8, 7, 6, 5]]], '3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5'
+    # phases_combinations. inp = [[[9,7,8,5,6]]], '''3,52,1001,52,-5,52,3,53,1,52,56,54,1007,54,5,55,1005,55,26,1001,54,-5,54,1105,1,12,1,53,54,53,1008,54,0,55,1001,55,1,55,2,53,55,53,4,53,1001,56,-1,56,1005,56,6,99,0,0,0,0,10'''
     for phases in phases_combinations:
         amplifiers = [
-            Amplifier(ind, phases[ind], '3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5')
+            Amplifier(ind, phases[ind], inp)
             for ind in range(5)
         ]
         amplifiers[0].feed(0)
