@@ -39,6 +39,16 @@ class intcodeComputer:
         else:
             raise ValueError("mode {} is unknown".format(mode))
 
+    def get_write_idx(self, param, mode):
+        if mode == 0:
+            return param
+        elif mode == 1:
+            raise ValueError("mode {} is wrong for write mode!".format(mode))
+        elif mode == 2:
+            return param + self.relative_base
+        else:
+            raise ValueError("mode {} is unknown".format(mode))
+
     def compute(self):
         curr_idx = 0
         while True:
@@ -67,17 +77,19 @@ class intcodeComputer:
 
             if op < 3:
                 shift = 4
+                idx = self.get_write_idx(param3, mode3)
                 if op == 1:
-                    self.memory[param3] = self.get_value(param1, mode1) + self.get_value(param2, mode2)
+                    self.memory[idx] = self.get_value(param1, mode1) + self.get_value(param2, mode2)
                 elif op == 2:
-                    self.memory[param3] = self.get_value(param1, mode1) * self.get_value(param2, mode2)
+                    self.memory[idx] = self.get_value(param1, mode1) * self.get_value(param2, mode2)
             elif op < 5:
                 shift = 2
                 if op == 3:
                     # Opcode 3 takes a single integer as input and saves it to the position given by its only parameter
                     # idx = self.relative_base + param1
-                    idx = self.get_value(param1, mode1)
+                    # idx = self.get_value(param1, mode1)
                     # idx = param1
+                    idx = self.get_write_idx(param3, mode3)
                     self.memory[idx] = int(
                         input('input:')
                     )
@@ -102,7 +114,8 @@ class intcodeComputer:
                     _val = 1
                 else:
                     _val = 0
-                self.memory[param3] = _val
+                idx = self.get_write_idx(param3, mode3)
+                self.memory[idx] = _val
                 shift = 4
             elif op == 9:
                 # Opcode 9 adjusts the relative base by the value of its only parameter
