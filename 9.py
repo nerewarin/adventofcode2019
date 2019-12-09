@@ -9,12 +9,14 @@ import collections
 
 
 class intcodeComputer:
-    def __init__(self, memory=None):
+    def __init__(self, memory=None, signals=None):
         if memory is None:
             with open(os.path.join('inputs', '{}.txt'.format(__file__.split('/')[-1].split('.')[0]))) as f:
                 memory = f.read()
         # self.memory = Memory([int(x) for x in memory.split(',')])
         memory = [int(x) for x in memory.split(',')]
+
+        self.signals = signals or []
 
         self.memory = collections.defaultdict(int)
         self.memory.update({
@@ -90,9 +92,11 @@ class intcodeComputer:
                     # idx = self.get_value(param1, mode1)
                     # idx = param1
                     idx = self.get_write_idx(param3, mode3)
-                    self.memory[idx] = int(
-                        input('input:')
-                    )
+                    if self.signals:
+                        signal = self.signals.pop(0)
+                    else:
+                        signal = int(input('input:'))
+                    self.memory[idx] = signal
                 elif op == 4:
                     out = self.get_value(param1, mode1)
                     print(out)
@@ -128,7 +132,11 @@ class intcodeComputer:
 
 
 def part1(*args, **kwargs):
-    return intcodeComputer(*args, **kwargs).compute()
+    return intcodeComputer(*args, signals=[1], **kwargs).compute()
+
+
+def part2(*args, **kwargs):
+    return intcodeComputer(*args, signals=[2], **kwargs).compute()
 
 
 if __name__ == '__main__':
@@ -140,7 +148,7 @@ if __name__ == '__main__':
         # part1(tst_mem2),
         # part1(tst_mem3),
         part1(),
-        # part2(),
+        part2(),
     ):
         # print(res)
         pass
