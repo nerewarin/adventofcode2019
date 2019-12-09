@@ -60,53 +60,58 @@ class intcodeComputer:
 
             param1 = self.memory[curr_idx + 1]
             param2 = self.memory[curr_idx + 2]
+            val1 = self.get_value(param1, mode1)
+            val2 = self.get_value(param2, mode2)
             try:
                 param3 = self.memory[curr_idx + 3]
+                val3 = self.get_value(param3, mode3)
             except KeyError:
                 param3 = None  # dirty but who cares
+                val3 = None  # dirty but who cares
 
             if op < 3:
                 shift = 4
                 if op == 1:
-                    self.memory[param3] = self.get_value(param1, mode1) + self.get_value(param2, mode2)
+                    self.memory[val3] = val1 + val2
                 elif op == 2:
-                    self.memory[param3] = self.get_value(param1, mode1) * self.get_value(param2, mode2)
+                    self.memory[val3] = val1 * val2
             elif op < 5:
                 shift = 2
                 if op == 3:
                     # Opcode 3 takes a single integer as input and saves it to the position given by its only parameter
                     # idx = self.relative_base + param1
-                    idx = self.get_value(param1, mode1)
+                    # idx = val1
                     # idx = param1
+                    idx = val1
                     self.memory[idx] = int(
                         input('input:')
                     )
                 elif op == 4:
-                    out = self.get_value(param1, mode1)
+                    out = val1
                     print(out)
             elif op < 7:
                 # jump-if-true
-                if op == 5 and self.get_value(param1, mode1):
-                    shift = self.get_value(param2, mode2) - curr_idx
+                if op == 5 and val1:
+                    shift = val2 - curr_idx
                 # jump-if-false
-                elif op == 6 and not self.get_value(param1, mode1):
-                    shift = self.get_value(param2, mode2) - curr_idx
+                elif op == 6 and not val1:
+                    shift = val2 - curr_idx
                 else:
                     shift = 3
             elif op < 9:
                 # less than
-                if op == 7 and self.get_value(param1, mode1) < self.get_value(param2, mode2):
+                if op == 7 and val1 < val2:
                     _val = 1
                 # equals
-                elif op == 8 and self.get_value(param1, mode1) == self.get_value(param2, mode2):
+                elif op == 8 and val1 == val2:
                     _val = 1
                 else:
                     _val = 0
-                self.memory[param3] = _val
+                self.memory[val3] = _val
                 shift = 4
             elif op == 9:
                 # Opcode 9 adjusts the relative base by the value of its only parameter
-                self.relative_base += self.get_value(param1, mode1)
+                self.relative_base += val1
                 shift = 2
             else:
                 raise NotImplemented("op={} is unknown".format(op))
