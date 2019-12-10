@@ -11,9 +11,10 @@ import math
 
 class MonitoringStation:
     BUSY = 1
+    EMPTY = 0
     place2int = {
-        '.': 0,  # EMPTY
-        '#': 1,  # BUSY
+        '.': EMPTY,
+        '#': BUSY,
     }
 
     def __init__(self, _map=None):
@@ -33,10 +34,11 @@ class MonitoringStation:
 
     @staticmethod
     def get_angle(x1, y1, x2, y2):
-        return math.atan2(y2 - y1, x2 - x1)
+        # let angle 0 be to the up
+        return (math.atan2(y2 - y1, x2 - x1) + math.pi / 2) % (math.pi * 2)
 
     def get_visible_asteroids_count(self, x1, y1):
-        checked_angles = set()
+        checked_angles = {}
         counter = 0
         for y2, line2 in enumerate(self.map):
             for x2, place2 in enumerate(line2):
@@ -52,12 +54,13 @@ class MonitoringStation:
                     continue
 
                 counter += 1
-                checked_angles.add(angle)
+                checked_angles[angle] = (x2, y2)
 
-        return counter
+        return counter, checked_angles
 
-    def get_visibility_map(self):
+    def get_visibility_map(self, return_angle2asteroid_map=False):
         visibility_map = []
+        angle2asteroid_map = {}
         for y1, line1 in enumerate(self.map):
             visibility_line = []
             for x1, place1 in enumerate(line1):
@@ -67,10 +70,14 @@ class MonitoringStation:
                     continue
 
                 # count visible asteroids by finding angles to every visible point
-                visible_asteroids = self.get_visible_asteroids_count(x1, y1)
+                visible_asteroids, checked_angles = self.get_visible_asteroids_count(x1, y1)
                 visibility_line.append(visible_asteroids)
+                angle2asteroid_map[x1, y1] = checked_angles
 
             visibility_map.append(visibility_line)
+
+        if return_angle2asteroid_map:
+            return visibility_map, angle2asteroid_map
 
         return visibility_map
 
@@ -85,6 +92,49 @@ class MonitoringStation:
                     max_vision = value
 
         return (x, y), max_vision
+
+    def find_best_place_and_angle2asteroid_map(self):
+        visibility_map, angle2asteroid_map = self.get_visibility_map(return_angle2asteroid_map=True)
+        x, y = (0, 0)
+        max_vision = float('-inf')
+        for y1, line1 in enumerate(visibility_map):
+            for x1, value in enumerate(line1):
+                if value > max_vision:
+                    x, y = (x1, y1)
+                    max_vision = value
+
+        return (x, y), max_vision, angle2asteroid_map
+
+    def vaporize(self, desirable_vaporized_idx):
+        station_pos, *max_vision, angle2asteroid_map = self.find_best_place_and_angle2asteroid_map()
+        x, y = None, None
+        # for idx in range(desirable_vaporized_idx):
+        #     x, y, angle2asteroid_map = self._vaporize(station_pos, angle2asteroid_map)
+
+        # The laser starts by pointing up and always rotates clockwise, vaporizing any asteroid it hits
+        angle2asteroids = angle2asteroid_map[station_pos]
+        if not angle2asteroids:
+            dummy, angle2asteroid_map = self.get_visibility_map(return_angle2asteroid_map=True)
+            angle2asteroids = angle2asteroid_map[station_pos]
+
+        sorted_angles = sorted(angle2asteroids)
+
+        idx = 0
+        while True:
+            for angle in sorted_angles:
+                vaporized_x, vaporized_y = angle2asteroids[angle]
+                self.map[vaporized_y][vaporized_x] = self.EMPTY
+                idx += 1
+                if idx == desirable_vaporized_idx:
+                    return vaporized_x, vaporized_y
+
+            dummy, angle2asteroid_map = self.get_visibility_map(return_angle2asteroid_map=True)
+            angle2asteroids = angle2asteroid_map[station_pos]
+
+            sorted_angles = sorted(angle2asteroids)
+
+            if not sorted_angles:
+                raise RuntimeError()
 
 
 def test1():
@@ -130,7 +180,8 @@ def test3():
         ##...#..#.
         .#....####
     '''
-    res = MonitoringStation(inp).find_best_place_and_count()
+    ms = MonitoringStation(inp)
+    res = ms.find_best_place_and_count()
     assert res == ((5, 8), 33), 'test3 failed!: {}'.format(res)
     return 'test3 ok'
 
@@ -172,12 +223,51 @@ def test5():
     return 'test{} ok'.format(test_num)
 
 
+inp6 = '''
+    .#..##.###...#######
+    ##.############..##.
+    .#.######.########.#
+    .###.#######.####.#.
+    #####.##.#.##.###.##
+    ..#####..#.#########
+    ####################
+    #.####....###.#.#.##
+    ##.#################
+    #####.##.###..####..
+    ..######..##.#######
+    ####.##.####...##..#
+    .#####..#.######.###
+    ##...#.##########...
+    #.##########.#######
+    .####.#.###.###.#.##
+    ....##.##.###..#####
+    .#.#.###########.###
+    #.#.#.#####.####.###
+    ###.##.####.##.#..##
+'''
+
+
+def test6():
+    test_num = 6
+    res = MonitoringStation(inp6).find_best_place_and_count()
+    assert res == ((11, 13), 210), 'test{} failed!: {}'.format(test_num, res)
+    return 'test{} ok'.format(test_num)
+
+
+def test7():
+    test_num = 7
+    res = MonitoringStation(inp6).vaporize(200)
+    assert res == (8, 2), 'test{} failed!: {}'.format(test_num, res)
+    return 'test{} ok'.format(test_num)
+
+
 def part1(*args, **kwargs):
     return MonitoringStation(*args).find_best_place_and_count()
 
 
 def part2(*args, **kwargs):
-    return MonitoringStation(*args).find_best_place()
+    x, y = MonitoringStation(*args).vaporize(200)
+    return x * 100 + y
 
 
 if __name__ == '__main__':
@@ -187,7 +277,9 @@ if __name__ == '__main__':
         test3(),
         test4(),
         test5(),
+        test6(),
         part1(),
-        # part2(),
+        test7(),
+        part2(),
     ):
         print(res)
