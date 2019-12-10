@@ -74,26 +74,106 @@ class MonitoringStation:
 
         return visibility_map
 
-    def find_best_place(self):
+    def find_best_place_and_count(self):
         visibility_map = self.get_visibility_map()
+        x, y = (0, 0)
+        max_vision = float('-inf')
+        for y1, line1 in enumerate(visibility_map):
+            for x1, value in enumerate(line1):
+                if value > max_vision:
+                    x, y = (x1, y1)
+                    max_vision = value
+
+        return (x, y), max_vision
 
 
 def test1():
-    tst_mem1 = '''
+    inp = '''
         .#..#
         .....
         #####
         ....#
         ...##
     '''
-    res = MonitoringStation(tst_mem1).get_visibility_map()
+    res = MonitoringStation(inp).get_visibility_map()
     assert res == [[0, 7, 0, 0, 7], [0, 0, 0, 0, 0], [6, 7, 7, 7, 5], [0, 0, 0, 0, 7], [0, 0, 0, 8, 7]], \
         'test1 failed!: {}'.format(res)
     return 'test1 ok'
 
 
+def test2():
+    inp = '''
+        #.........
+        ...A......
+        ...B..a...
+        .EDCG....a
+        ..F.c.b...
+        .....c....
+        ..efd.c.gb
+        .......c..
+        ....f...c.
+        ...e..d..c
+    '''
+    return 'test2 is not implemented'
+
+
+def test3():
+    inp = '''
+        ......#.#.
+        #..#.#....
+        ..#######.
+        .#.#.###..
+        .#..#.....
+        ..#....#.#
+        #..#....#.
+        .##.#..###
+        ##...#..#.
+        .#....####
+    '''
+    res = MonitoringStation(inp).find_best_place_and_count()
+    assert res == ((5, 8), 33), 'test3 failed!: {}'.format(res)
+    return 'test3 ok'
+
+
+def test4():
+    inp = '''
+        #.#...#.#.
+        .###....#.
+        .#....#...
+        ##.#.#.#.#
+        ....#.#.#.
+        .##..###.#
+        ..#...##..
+        ..##....##
+        ......#...
+        .####.###.
+    '''
+    res = MonitoringStation(inp).find_best_place_and_count()
+    assert res == ((1, 2), 35), 'test4 failed!: {}'.format(res)
+    return 'test4 ok'
+
+
+def test5():
+    test_num = 5
+    inp = '''
+        .#..#..###
+        ####.###.#
+        ....###.#.
+        ..###.##.#
+        ##.##.#.#.
+        ....###..#
+        ..#.#..#.#
+        #..#.#.###
+        .##...##.#
+        .....#.#..
+    '''
+    res = MonitoringStation(inp).find_best_place_and_count()
+    assert res == ((6, 3), 41), 'test{} failed!: {}'.format(test_num, res)
+    return 'test{} ok'.format(test_num)
+
+
 def part1(*args, **kwargs):
-    return MonitoringStation(*args).find_best_place()
+    return MonitoringStation(*args).find_best_place_and_count()
 
 
 def part2(*args, **kwargs):
@@ -103,9 +183,11 @@ def part2(*args, **kwargs):
 if __name__ == '__main__':
     for res in (
         test1(),
-        # part1(tst_mem2),
-        # part1(tst_mem3),
-        # part1(),
+        test2(),
+        test3(),
+        test4(),
+        test5(),
+        part1(),
         # part2(),
     ):
         print(res)
