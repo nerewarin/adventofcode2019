@@ -229,11 +229,11 @@ def get_fuel_for_ore(given_ore=1000000000000, inp=None):
             if 0 <= step <= 1:
                 break
 
-            step = (max_fuel - fuel) // 2  # TODO ceil?
+            step = (max_fuel - fuel) // 2
 
         elif res > given_ore:
             max_fuel = fuel
-            step = (min_fuel - fuel) // 2  # TODO ceil?
+            step = (min_fuel - fuel) // 2
 
         fuel += step
 
