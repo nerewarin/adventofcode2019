@@ -34,6 +34,7 @@ def topological(graph):
     while enter: dfs(enter.pop())
     return order
 
+
 class SpaceStoichiometry:
     _reaction_rexp = re.compile(r'(\d+)\s(\w+)')
     _consumed_ore_key = 'consumed ORE'
@@ -69,73 +70,7 @@ class SpaceStoichiometry:
 
         self._indent = ''
 
-    def _cook(self, required_ingredient, required_amount, bag, indent=None):
-        """Minimum amount of ORE required to produce exactly 1 <ingredient>
-
-        Returns:
-            int: amount of ORE needed to produce one <ingredient>
-
-        """
-        if indent is None:
-            indent = self._indent
-        formula = self.expressions[required_ingredient]
-        print('{}cooking {} {} by formula {}, bag={}'.format(indent, required_amount, required_ingredient, formula, bag))
-        self._indent += ' '
-
-        ing_key = self._ing_key
-        result_amount_key = self._result_amount_key
-        ore_key = self._ore_key
-
-        unused_ing_amount = bag[required_ingredient]
-        if unused_ing_amount:
-            _required_amount = required_amount - unused_ing_amount
-            if _required_amount < 0:
-                bag[required_ingredient] -= required_amount
-                return bag
-
-            bag[required_ingredient] -= unused_ing_amount
-            required_amount = _required_amount
-
-        formula_output_amount = formula[result_amount_key]
-        required_operations = math.ceil(required_amount / formula_output_amount)
-        _consumed_ore_by_formula = 0
-        for ing_name, ing_amount in formula[ing_key].items():
-            if ing_name == ore_key:
-                _consumed_ore_value = required_operations * ing_amount
-
-                unused_ing_amount = required_operations * formula_output_amount - required_amount
-                if unused_ing_amount < 0:
-                   raise RuntimeError('fix me')
-
-                bag[required_ingredient] += unused_ing_amount
-                bag[self._consumed_ore_key] += _consumed_ore_value
-
-                _consumed_ore_by_formula += _consumed_ore_value
-            else:
-                _consumed_ore_before = bag[ore_key]
-
-                # assert res == 180697
-                _to_cook = ing_amount * required_operations  # test4 failed!: 182966
-                # _to_cook = math.ceil(ing_amount * (required_amount / formula_output_amount))  # test4 failed!: 179537
-
-                self._cook(ing_name, _to_cook, bag, indent + ' ')
-                _consumed_ore_by_formula += bag[ore_key] - _consumed_ore_before
-
-        print('{}cooked {} {} by formula {}, consumed={}, bag={}'.format(indent, required_amount, required_ingredient, formula, _consumed_ore_by_formula, bag))
-        return bag
-
-    # def get_fuel_cost(self):
-    #     """Minimum amount of ORE required to produce exactly 1 FUEL
-    #
-    #     Returns:
-    #         int: amount of ORE needed to produce one FUEL
-    #
-    #     """
-    #     bag = Bag()
-    #     self._cook('FUEL', 1, bag)
-    #     return bag[self._consumed_ore_key]
-
-    def get_fuel_cost(self):
+    def get_ore_for_fuel(self, fuel=1):
         """Minimum amount of ORE required to produce exactly 1 FUEL
 
         Returns:
@@ -143,7 +78,7 @@ class SpaceStoichiometry:
 
         """
         bag = Bag()
-        bag['FUEL'] += 1
+        bag['FUEL'] += fuel
 
         while any([bag.get(key) for key in bag if key != self._ore_key]):
             for item in self.topologic_sorted_tops:
@@ -241,42 +176,89 @@ inp5 = '''
 '''
 
 
-def test(test_num):
+def test(test_num, mode=0):
+    ore_mode_2 = 1000000000000
     if test_num == 1:
-        res = SpaceStoichiometry(inp).get_fuel_cost()
+        res = SpaceStoichiometry(inp).get_ore_for_fuel()
         assert res == 31, 'test{} failed!: {}'.format(test_num, res)
     if test_num == 2:
-        res = SpaceStoichiometry(inp2).get_fuel_cost()
+        res = SpaceStoichiometry(inp2).get_ore_for_fuel()
         assert res == 165, 'test{} failed!: {}'.format(test_num, res)
     if test_num == 3:
-        res = SpaceStoichiometry(inp3).get_fuel_cost()
-        assert res == 13312, 'test{} failed!: {}'.format(test_num, res)
+        _inp = inp3
+        if not mode:
+            res = SpaceStoichiometry(_inp).get_ore_for_fuel()
+            assert res == 13312, 'test{} failed!: {}'.format(test_num, res)
+        else:
+            res = get_fuel_for_ore(ore_mode_2, _inp)
+            assert res == 82892753, 'test{} failed!: {}'.format(test_num, res)
+
     if test_num == 4:
-        res = SpaceStoichiometry(inp4).get_fuel_cost()
-        assert res == 180697, 'test{} failed!: {}'.format(test_num, res)
+        _inp = inp4
+        if not mode:
+            res = SpaceStoichiometry(inp4).get_ore_for_fuel()
+            assert res == 180697, 'test{} failed!: {}'.format(test_num, res)
+        else:
+            res = get_fuel_for_ore(ore_mode_2, _inp)
+            assert res == 5586022 , 'test{} failed!: {}'.format(test_num, res)
+
     if test_num == 5:
-        res = SpaceStoichiometry(inp5).get_fuel_cost()
-        assert res == 2210736, 'test{} failed!: {}'.format(test_num, res)
+        _inp = inp5
+        if not mode:
+            res = SpaceStoichiometry(_inp).get_ore_for_fuel()
+            assert res == 2210736, 'test{} failed!: {}'.format(test_num, res)
+        else:
+            res = get_fuel_for_ore(ore_mode_2, _inp)
+            assert res == 460664, 'test{} failed!: {}'.format(test_num, res)
+
     return 'test{} ok'.format(test_num)
 
 
+def get_fuel_for_ore(given_ore=1000000000000, inp=None):
+    min_fuel = 0
+    max_fuel = 10 ** 12
+    fuel = max_fuel // 2
+    step = fuel
+    while True:
+        res = SpaceStoichiometry(inp).get_ore_for_fuel(fuel)
+        # print(fuel, res, 100 * abs(res - given_ore) / given_ore)
+
+        if res < given_ore:
+            min_fuel = fuel
+
+            if 0 <= step <= 1:
+                break
+
+            step = (max_fuel - fuel) // 2  # TODO ceil?
+
+        elif res > given_ore:
+            max_fuel = fuel
+            step = (min_fuel - fuel) // 2  # TODO ceil?
+
+        fuel += step
+
+    return fuel
+
+
 def part1(*args, **kwargs):
-    return SpaceStoichiometry(*args).get_fuel_cost()
+    return SpaceStoichiometry(*args).get_ore_for_fuel()
 
 
 def part2(*args, **kwargs):
-    x, y = MonitoringStation(*args).vaporize(200)
-    return x * 100 + y
+    return get_fuel_for_ore()
 
 
 if __name__ == '__main__':
     for res in (
-        # test(1),
-        # test(2),
+        test(1),
+        test(2),
         test(3),
-        # test(4),
-        # test(5),
-        # part1(),
-        # part2(),
+        test(4),
+        test(5),
+        part1(),
+        test(3, mode=2),
+        test(4, mode=2),
+        test(5, mode=2),
+        part2(),
     ):
         print(res)
