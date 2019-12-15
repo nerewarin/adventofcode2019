@@ -220,7 +220,7 @@ def test(test_num, mode=0):
 
 
 def get_fuel_for_ore(given_ore=1000000000000, inp=None):
-    return given_ore // SpaceStoichiometry(inp, mode=2).get_ore_for_fuel(1)
+    return int(given_ore // SpaceStoichiometry(inp, mode=2).get_ore_for_fuel(1))
 
 
 def part1(*args, **kwargs):
@@ -238,10 +238,10 @@ if __name__ == '__main__':
         test(3),
         test(4),
         test(5),
-        # part1(),
+        part1(),
         test(3, mode=2),
         test(4, mode=2),
         test(5, mode=2),
-        # part2(),
+        part2(),
     ):
         print(res)
