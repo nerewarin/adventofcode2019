@@ -15,9 +15,31 @@ from dataclasses import dataclass
 from typing import Tuple
 
 
+def topological(graph):
+    from collections import deque
+    GRAY, BLACK = 0, 1
+    order, enter, state = deque(), set(graph), {}
+
+    def dfs(node):
+        state[node] = GRAY
+        for k in graph.get(node, ()):
+            sk = state.get(k, None)
+            if sk == GRAY: raise ValueError("cycle")
+            if sk == BLACK: continue
+            enter.discard(k)
+            dfs(k)
+        order.appendleft(node)
+        state[node] = BLACK
+
+    while enter: dfs(enter.pop())
+    return order
+
 class SpaceStoichiometry:
     _reaction_rexp = re.compile(r'(\d+)\s(\w+)')
     _consumed_ore_key = 'consumed ORE'
+    _ing_key = 'ingredients'
+    _ore_key = 'ORE'
+    _result_amount_key = 'count'
 
     def __init__(self, inp=None):
         if inp is None:
@@ -26,17 +48,25 @@ class SpaceStoichiometry:
         else:
             lines = [line for line in inp.split('\n') if line.strip()]
 
-        self.expressions = {}
+        expressions = {}
         for line in lines:
             *consumes, produce = self._reaction_rexp.findall(line)
-            self.expressions[produce[1]] = {
+            expressions[produce[1]] = {
                 'count': int(produce[0]),
                 'ingredients': {
                     consume[1]: int(consume[0]) for consume in consumes
                 }
             }
+        self.expressions = expressions
 
-        self.costs = {}
+        edges = {}
+        for res, data in expressions.items():
+            ingredients = data[self._ing_key]
+            edges[res] = list(ingredients)
+
+        tpt = topological(edges)
+        self.topologic_sorted_tops = tpt
+
         self._indent = ''
 
     def _cook(self, required_ingredient, required_amount, bag, indent=None):
@@ -52,13 +82,9 @@ class SpaceStoichiometry:
         print('{}cooking {} {} by formula {}, bag={}'.format(indent, required_amount, required_ingredient, formula, bag))
         self._indent += ' '
 
-        # if required_ingredient in self.costs:
-        #     # cache
-        #     return self.costs[required_ingredient]
-
-        ing_key = 'ingredients'
-        result_amount_key = 'count'
-        ore_key = 'ORE'
+        ing_key = self._ing_key
+        result_amount_key = self._result_amount_key
+        ore_key = self._ore_key
 
         unused_ing_amount = bag[required_ingredient]
         if unused_ing_amount:
@@ -98,6 +124,17 @@ class SpaceStoichiometry:
         print('{}cooked {} {} by formula {}, consumed={}, bag={}'.format(indent, required_amount, required_ingredient, formula, _consumed_ore_by_formula, bag))
         return bag
 
+    # def get_fuel_cost(self):
+    #     """Minimum amount of ORE required to produce exactly 1 FUEL
+    #
+    #     Returns:
+    #         int: amount of ORE needed to produce one FUEL
+    #
+    #     """
+    #     bag = Bag()
+    #     self._cook('FUEL', 1, bag)
+    #     return bag[self._consumed_ore_key]
+
     def get_fuel_cost(self):
         """Minimum amount of ORE required to produce exactly 1 FUEL
 
@@ -106,8 +143,26 @@ class SpaceStoichiometry:
 
         """
         bag = Bag()
-        self._cook('FUEL', 1, bag)
-        return bag[self._consumed_ore_key]
+        bag['FUEL'] += 1
+
+        while any([bag.get(key) for key in bag if key != self._ore_key]):
+            for item in self.topologic_sorted_tops:
+                if bag.get(item):
+                    break
+            else:
+                raise RuntimeError("это хуёво")
+
+            required_amount = bag.pop(item)
+
+            formula = self.expressions[item]
+            formula_output_amount = formula[self._result_amount_key]
+
+            required_operations = math.ceil(required_amount / formula_output_amount)
+            for ing_name, ing_amount in formula[self._ing_key].items():
+                consumed_ing_amount = required_operations * ing_amount
+                bag[ing_name] += consumed_ing_amount
+
+        return bag[self._ore_key]
 
 
 class Bag(collections.defaultdict):
@@ -218,8 +273,8 @@ if __name__ == '__main__':
     for res in (
         # test(1),
         # test(2),
-        # test(3),
-        test(4),
+        test(3),
+        # test(4),
         # test(5),
         # part1(),
         # part2(),
