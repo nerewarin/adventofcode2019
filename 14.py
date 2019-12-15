@@ -42,7 +42,7 @@ class SpaceStoichiometry:
     _ore_key = 'ORE'
     _result_amount_key = 'count'
 
-    def __init__(self, inp=None):
+    def __init__(self, inp=None, mode=None):
         if inp is None:
             with open(os.path.join('inputs', '{}.txt'.format(__file__.split('/')[-1].split('.')[0]))) as f:
                 lines = f.readlines()
@@ -69,6 +69,7 @@ class SpaceStoichiometry:
         self.topologic_sorted_tops = tpt
 
         self._indent = ''
+        self.mode = mode
 
     def get_ore_for_fuel(self, fuel=1):
         """Minimum amount of ORE required to produce exactly 1 FUEL
@@ -92,7 +93,11 @@ class SpaceStoichiometry:
             formula = self.expressions[item]
             formula_output_amount = formula[self._result_amount_key]
 
-            required_operations = math.ceil(required_amount / formula_output_amount)
+            if self.mode:
+                required_operations = required_amount / formula_output_amount
+            else:
+                required_operations = math.ceil(required_amount / formula_output_amount)
+
             for ing_name, ing_amount in formula[self._ing_key].items():
                 consumed_ing_amount = required_operations * ing_amount
                 bag[ing_name] += consumed_ing_amount
@@ -215,29 +220,7 @@ def test(test_num, mode=0):
 
 
 def get_fuel_for_ore(given_ore=1000000000000, inp=None):
-    min_fuel = 0
-    max_fuel = 10 ** 12
-    fuel = max_fuel // 2
-    step = fuel
-    while True:
-        res = SpaceStoichiometry(inp).get_ore_for_fuel(fuel)
-        # print(fuel, res, 100 * abs(res - given_ore) / given_ore)
-
-        if res < given_ore:
-            min_fuel = fuel
-
-            if 0 <= step <= 1:
-                break
-
-            step = (max_fuel - fuel) // 2
-
-        elif res > given_ore:
-            max_fuel = fuel
-            step = (min_fuel - fuel) // 2
-
-        fuel += step
-
-    return fuel
+    return given_ore // SpaceStoichiometry(inp, mode=2).get_ore_for_fuel(1)
 
 
 def part1(*args, **kwargs):
@@ -255,10 +238,10 @@ if __name__ == '__main__':
         test(3),
         test(4),
         test(5),
-        part1(),
+        # part1(),
         test(3, mode=2),
         test(4, mode=2),
         test(5, mode=2),
-        part2(),
+        # part2(),
     ):
         print(res)
