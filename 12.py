@@ -98,9 +98,11 @@ class NbodyProblem:
         self.history = [
             [] for x in range(self.dim)
         ]
-        for idx in range(self.dim):
-            coord_history = tuple(moon.coords[idx] for moon in self.moons)
-            self.history[idx].append(coord_history)
+        # for idx in range(self.dim):
+        #     coord_history = tuple(moon.coords[idx] for moon in self.moons)
+        #     vel_history = tuple(moon.velocity[idx] for moon in self.moons)
+        #     state = (coord_history, vel_history)
+        #     self.history[idx].append(state)
 
         self.periods = [
             0 for x in range(self.dim)
@@ -112,16 +114,17 @@ class NbodyProblem:
 
     def _update_history(self):
         for idx in range(self.dim):
-            # if self.periods[idx]:
-            #     continue
+            if self.periods[idx]:
+                continue
 
             coord_history = tuple(moon.coords[idx] for moon in self.moons)
+            vel_history = tuple(moon.velocity[idx] for moon in self.moons)
+            state = (coord_history, vel_history)
 
-            # if coord_history in self.history[idx] and self.tick - self.history[idx].index(coord_history) > 1:
-            if coord_history in self.history[idx]:
+            if state in self.history[idx]:
                 self.periods[idx] = self.tick
 
-            self.history[idx].append(coord_history)
+            self.history[idx].append(state)
 
     @property
     def total_energy(self):
@@ -142,10 +145,11 @@ class NbodyProblem:
                 # print(i)
                 # print(moon1)
 
+            self._update_history()
+
             for moon in self.moons:
                 moon.move()
 
-            self._update_history()
 
         # print(f'After {x+1} steps:')
         # for moon in self.moons:
@@ -158,11 +162,11 @@ class NbodyProblem:
         # print(self.total_energy)
 
     def find_period(self):
-        self.simulate(2772)
-        # while not self.period_found:
-        #     self.simulate(1)
+        # self.simulate(2772)
+        while not self.period_found:
+            self.simulate(1)
 
-        return self.periods
+        return nok(*self.periods)
 
 
 inp = '''
@@ -172,14 +176,26 @@ inp = '''
 <x=3, y=5, z=-1>
 '''
 
+inp2 = '''
+<x=-8, y=-10, z=0>
+<x=5, y=5, z=10>
+<x=2, y=-7, z=3>
+<x=9, y=-8, z=-3>
+'''
+
 
 def test(test_num):
     if test_num == 1:
-        res = NbodyProblem(inp).simulate(10)
-        # assert res == 2772, 'test{} failed!: {}'.format(test_num, res)
+        np = NbodyProblem(inp)
+        np.simulate(10)
+        assert np.total_energy == 179, 'test{} failed!: {}'.format(test_num, res)
     if test_num == 2:
         res = NbodyProblem(inp).find_period()
         assert res == 2772, 'test{} failed!: {}'.format(test_num, res)
+    if test_num == 3:
+        res = NbodyProblem(inp2).find_period()
+        assert res == 4686774924, 'test{} failed!: {}'.format(test_num, res)
+
     return 'test{} ok'.format(test_num)
 
 
@@ -190,15 +206,25 @@ def part1(*args, **kwargs):
 
 
 def part2(*args, **kwargs):
-    x, y = MonitoringStation(*args).vaporize(200)
-    return x * 100 + y
+    pr = NbodyProblem(*args)
+    return NbodyProblem().find_period()
+
+
+def nok(*args):
+    i = min(args)
+    while True:
+        if all(i % x == 0 for x in args):
+            break
+        i += 1
+    return i
 
 
 if __name__ == '__main__':
     for res in (
-        # test(1),
+        test(1),
         # part1(),
-        test(2),
+        # test(2),
+        # test(3),
         # part2(),
     ):
         print(res)
