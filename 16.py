@@ -15,7 +15,7 @@ from typing import Tuple
 
 
 class FFT:
-    def __init__(self, inp=None):
+    def __init__(self, inp=None, mode=None):
         if inp is None:
             with open(os.path.join('inputs', '{}.txt'.format(__file__.split('/')[-1].split('.')[0]))) as f:
                 inp = f.read()
@@ -24,41 +24,49 @@ class FFT:
         self.input_len = len(inp)
         self.pattern = [0, 1, 0, -1]
         self.pattern_len = len(self.pattern)
+        self.mode = mode
+
+    @staticmethod
+    def lcm(a, b):
+        return a * b // math.gcd(a, b)
 
     def run(self, phases):
         inp = self.inp
+        offset = 0
+
+        if self.mode == 2:
+            inp = inp * 10000
+            _offset = inp[:7]
+            offset = int(''.join(str(x) for x in _offset))
+
+        inp = inp[offset:]
+        inp_size = len(inp)
+
         for phase in range(phases):
-            new = []
-            for idx in range(self.input_len):
-                _pattern = [x for item in self.pattern for x in itertools.repeat(item, idx + 1)]
-                _extend = int(math.ceil(self.input_len / len(_pattern)) + 1)
-                pattern = (_pattern * _extend)[1: self.input_len + 1]
-
-                if len(pattern) != self.input_len:
-                    raise RuntimeError('len(pattern)', len(pattern))
-
-                new_val = 0
-                for idx2, value2 in enumerate(inp):
-                    a = value2
-                    b = pattern[idx2]
-                    _new_val_part = a * b
-                    new_val += _new_val_part
-
-                val = abs(new_val) % 10
-                new.append(val)
-
-            # print(new)
-            inp = new
+            val = 0
+            for idx in range(inp_size):
+                _idx = -idx - 1
+                val += inp[_idx]
+                val = abs(val) % 10
+                inp[_idx] = val
 
         return ''.join(str(digit) for digit in inp)
 
-inp = '12345678'
+
+inp1 = '12345678'
+inp2 = '03036732577212944063491565474664'
 
 
 def test(test_num):
     if test_num == 1:
-        res = FFT(inp).run(4)
+        res = FFT(inp1).run(4)
         assert res == '01029498', 'test{} failed!: {}'.format(test_num, res)
+    elif test_num == 2:
+        msg = FFT(inp2, mode=2).run(100)
+        res = msg[:8]
+        assert res == '84462026', 'test{} failed!: {}'.format(test_num, res)
+    else:
+        raise ValueError('test{} not implemented'.format(test_num))
     return 'test{} ok'.format(test_num)
 
 
@@ -66,12 +74,15 @@ def part1():
     return FFT().run(100)[:8]
 
 
+def part2():
+    return FFT(mode=2).run(100)[:8]
+
 
 if __name__ == '__main__':
     for res in (
-        test(1),
+        # test(1),
         # part1(),
         # test(2),
-        # part2(),
+        part2(),
     ):
         print(res)
