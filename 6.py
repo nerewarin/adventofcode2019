@@ -15,35 +15,18 @@ class UniversalOrbitMap:
     _inp_rexp = re.compile(r'(\w+)\)(\w+)', re.MULTILINE)
 
     def __init__(self, inp=None, mode=None):
-        graph_class = networkx.DiGraph if not mode else networkx.Graph
-
         if inp is None:
             with open(os.path.join('inputs', '{}.txt'.format(__file__.split('/')[-1].split('.')[0]))) as f:
                 inp = f.read()
 
         edges = [self._inp_rexp.match(line.strip()).groups() for line in inp.split('\n') if line.strip()]
-
-        self.edges = edges
+        graph_class = networkx.DiGraph if not mode else networkx.Graph
 
         self.graph = graph_class()
         self.graph.add_edges_from(edges)
 
-    @property
-    def direct_orbits(self):
-        return len(self.edges)
-
-    def get_indirect_orbits(self):
-        g = self.graph
-
-        root2child = {}
-        for node, nbrsdict in g.adjacency():
-            root2child[node] = len(networkx.descendants(g, node)) - len(nbrsdict)
-
-        return sum(root2child.values())
-
     def orbit_count_checksums(self):
         return sum(len(networkx.descendants(self.graph, node)) for node, nbrsdict in self.graph.adjacency())
-        # return self.direct_orbits + self.get_indirect_orbits()
 
     def get_moves_to_santa(self):
         return len(networkx.shortest_path(self.graph, source='YOU', target='SAN')) - 3
