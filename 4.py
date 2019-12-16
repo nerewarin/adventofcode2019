@@ -23,7 +23,7 @@ class SecureContainer:
 
         self.min, self.max = (int(digit) for digit in inp.split('-'))
 
-    def count_different_passwords(self):
+    def count_different_passwords(self, mode=None):
         """
         How many different passwords within the range given in your puzzle input meet these criteria?
 
@@ -39,32 +39,32 @@ class SecureContainer:
         res = 0
         for candidate in range(self.min, self.max):
             # Two adjacent digits are the same (like 22 in 122345).
-            # counter = collections.Counter()
             candidate_str = str(candidate)
-            has_adjacent = False
+            repeats = collections.defaultdict(int)
             decreases = False
+            repeated = 0
             for idx in range(len(candidate_str) - 1):
                 first = candidate_str[idx]
                 second = candidate_str[idx + 1]
-                if first == second:
-                    has_adjacent = True
-
                 # Going from left to right, the digits never decrease; they only ever increase or stay the same (like 111123 or 135679).
                 if int(second) < int(first):
                     decreases = True
                     break
 
-            if not has_adjacent:
-                continue
+                if first == second:
+                    repeated += 1
+                    repeats[first] = repeated
+                else:
+                    repeated = 0
 
             if decreases:
                 continue
 
-            res += 1
-            # print('{}. {}'.format(res, candidate))
+            if not any(val == 1 for val in repeats.values()):
+                continue
 
-        # 204503 is too high
-        # 1246 wrong account? lol
+            res += 1
+
         return res
 
 
@@ -74,9 +74,14 @@ inp = '245318-765747'
 def part1():
     return SecureContainer(inp).count_different_passwords()
 
+def part2():
+    # 569 too low
+    return SecureContainer(inp).count_different_passwords(mode=2)
+
 
 if __name__ == '__main__':
     for res in (
-        part1(),
+        # part1(),
+        part2(),
     ):
         print(res)
