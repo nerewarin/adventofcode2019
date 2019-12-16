@@ -6,12 +6,10 @@ https://adventofcode.com/2019/day/12
 """
 
 import os
-import math
 import re
 import itertools
 
 from dataclasses import dataclass
-from typing import Tuple
 
 
 @dataclass()
@@ -98,9 +96,6 @@ class NbodyProblem:
         self.history = [
             [] for x in range(self.dim)
         ]
-        for idx in range(self.dim):
-            coord_history = tuple(moon.coords[idx] for moon in self.moons)
-            self.history[idx].append(coord_history)
 
         self.periods = [
             0 for x in range(self.dim)
@@ -112,16 +107,18 @@ class NbodyProblem:
 
     def _update_history(self):
         for idx in range(self.dim):
-            # if self.periods[idx]:
-            #     continue
+            if self.periods[idx]:
+                continue
 
-            coord_history = tuple(moon.coords[idx] for moon in self.moons)
+            coord = tuple(moon.coords[idx] for moon in self.moons)
+            vel = tuple(moon.velocity[idx] for moon in self.moons)
+            state = (coord, vel)
 
-            # if coord_history in self.history[idx] and self.tick - self.history[idx].index(coord_history) > 1:
-            if coord_history in self.history[idx]:
-                self.periods[idx] = self.tick
+            if state in self.history[idx]:
+                self.periods[idx] = self.tick -1
 
-            self.history[idx].append(coord_history)
+            if not self.history[idx]:
+                self.history[idx].append(state)
 
     @property
     def total_energy(self):
@@ -130,39 +127,25 @@ class NbodyProblem:
     def simulate(self, steps):
         for x in range(steps):
             self.tick += 1
-            # print(f'After {x} steps:')
-            # for moon in self.moons:
-            #     print(moon)
 
-            i = 0
             for moon1, moon2 in itertools.permutations(self.moons, 2):
                 moon1.update_velocity(moon2)
 
-                i += 1
-                # print(i)
-                # print(moon1)
+            self._update_history()
 
             for moon in self.moons:
                 moon.move()
 
-            self._update_history()
-
-        # print(f'After {x+1} steps:')
-        # for moon in self.moons:
-        #     print(repr(moon))
-
-        # print('Energy after 10 steps:')
-        # for moon in self.moons:
-        #     print(str(moon))
-
-        # print(self.total_energy)
+        return self.total_energy
 
     def find_period(self):
-        self.simulate(2772)
-        # while not self.period_found:
-        #     self.simulate(1)
+        while not self.period_found:
+            self.simulate(1)
 
-        return self.periods
+        return nok2(
+            nok2(*self.periods[:2]),
+            self.periods[2]
+        )
 
 
 inp = '''
@@ -172,14 +155,25 @@ inp = '''
 <x=3, y=5, z=-1>
 '''
 
+inp2 = '''
+<x=-8, y=-10, z=0>
+<x=5, y=5, z=10>
+<x=2, y=-7, z=3>
+<x=9, y=-8, z=-3>
+'''
+
 
 def test(test_num):
     if test_num == 1:
         res = NbodyProblem(inp).simulate(10)
-        # assert res == 2772, 'test{} failed!: {}'.format(test_num, res)
+        assert res == 179, 'test{} failed!: {}'.format(test_num, res)
     if test_num == 2:
         res = NbodyProblem(inp).find_period()
-        assert res == 2772, 'test{} failed!: {}'.format(test_num, res)
+        assert res == 2772, 'test{} failed!: {} USE simulate(2772) TO TEST!'.format(test_num, res)
+    if test_num == 3:
+        res = NbodyProblem(inp2).find_period()
+        assert res == 4686774924, 'test{} failed!: {}'.format(test_num, res)
+
     return 'test{} ok'.format(test_num)
 
 
@@ -190,15 +184,23 @@ def part1(*args, **kwargs):
 
 
 def part2(*args, **kwargs):
-    x, y = MonitoringStation(*args).vaporize(200)
-    return x * 100 + y
+    pr = NbodyProblem(*args)
+    return NbodyProblem().find_period()
+
+
+from math import gcd
+
+
+def nok2(a, b):
+    return a * b // gcd(a, b)
 
 
 if __name__ == '__main__':
     for res in (
         # test(1),
         # part1(),
-        test(2),
-        # part2(),
+        # test(2),
+        # test(3),
+        part2(),
     ):
         print(res)
