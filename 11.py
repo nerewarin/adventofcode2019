@@ -7,37 +7,85 @@ https://adventofcode.com/2019/day/11
 
 import os
 import math
+import collections
+import operator
 
+from _intcode_computer import IntcodeComputer
 
 BLACK, WHITE = 0, 1
+LEFT, RIGHT = 0, 1
 
 
 class SpacePolice:
-    def __init__(self, _map=None):
-        if _map is None:
-            with open(os.path.join('inputs', '{}.txt'.format(__file__.split('/')[-1].split('.')[0]))) as f:
-                _map = f.read()
-        else:
-            _map = '\n'.join((
-                line.strip() for line in _map.split('\n')
-            ))
-        _map = [
-            [self.place2int.get(place, self.BUSY) for place in line]
-            for line in _map.split('\n') if line
-        ]
+    def __init__(self, inp=None, mode=None):
+        # key (tuple) : coordinates
+        self.map = collections.defaultdict(
+            tuple  # value: current_color (int), painted (bool)
+        )
 
-        self.map = _map
+        self.computer = IntcodeComputer(inp, mode)
+
+        self.direction = 0  # up
+
+    def _update_direction(self, turn):
+        if turn not in (LEFT, RIGHT):
+            raise ValueError()
+        self.direction = (self.direction + (-1) ** (turn + 1)) % 4
+        return self.direction
+
+    def _get_step(self):
+        if self.direction == 0:
+            return (0, 1)
+        if self.direction == 1:
+            return (1, 0)
+        if self.direction == 2:
+            return (0, -1)
+        if self.direction == 3:
+            return (-1, 0)
 
     def paint(self):
         """
-        Provide 0 if the robot is over a black panel or 1 if the robot is over a white panel.
-        Then, the program will output two values:
+        The Intcode program will serve as the brain of the robot
 
         Returns:
+            int: number of panels it paints at least once, regardless of color
 
         """
-        inputs = BLACK, WHITE
+        pos = (0, 0)
+        poses = [pos]
+        dirs = [self.direction]
+        while True:
+            try:
+                # provide 0 if the robot is over a black panel or 1 if the robot is over a white panel.
+                state = self.map.get(pos)
+                print(pos)
+                curr_color = 1 if state and state[0] else 0
+                self.computer.feed(curr_color)
 
+                # First, it will output a value indicating the color to paint the panel the robot is over:
+                # 0 means to paint the panel black, and 1 means to paint the panel white
+                color = next(self.computer)
+                print('WHITE' if color else 'BLACK')
+
+                # Second, it will output a value indicating the direction the robot should turn:
+                # 0 means it should turn left 90 degrees, and 1 means it should turn right 90 degrees.
+                turn = next(self.computer)
+                print('RIGHT' if turn else 'LEFT')
+
+                if pos in self.map:
+                    a = 0
+                self.map[pos] = color, True
+
+                self._update_direction(turn)
+
+                step = self._get_step()
+                pos = tuple(map(operator.add, pos, step))
+
+                poses += [pos]
+                dirs += [self.direction]
+
+            except StopIteration as e:
+                return sum(val[1] for val in self.map.values())
 
 
 def test1():
@@ -48,9 +96,8 @@ def test1():
         ....#
         ...##
     '''
-    res = MonitoringStation(inp).get_visibility_map()
-    assert res == [[0, 7, 0, 0, 7], [0, 0, 0, 0, 0], [6, 7, 7, 7, 5], [0, 0, 0, 0, 7], [0, 0, 0, 8, 7]], \
-        'test1 failed!: {}'.format(res)
+    res = SpacePolice(inp).paint()
+    assert res == 6, 'test1 failed!: {}'.format(res)
     return 'test1 ok'
 
 
@@ -62,7 +109,7 @@ def test7():
 
 
 def part1(*args, **kwargs):
-    return MonitoringStation(*args).find_best_place_and_count()
+    return SpacePolice(*args, **kwargs).paint()
 #
 #
 # def part2(*args, **kwargs):
@@ -72,13 +119,13 @@ def part1(*args, **kwargs):
 
 if __name__ == '__main__':
     for res in (
-        test1(),
+        # test1(),
         # test2(),
         # test3(),
         # test4(),
         # test5(),
         # test6(),
-        # part1(),
+        part1(),
         # test7(),
         # part2(),
     ):
