@@ -1,7 +1,7 @@
 """
---- Day 10: Monitoring Station ---
+--- Day 11: Space Police ---
 
-https://adventofcode.com/2019/day/10
+https://adventofcode.com/2019/day/11
 
 """
 
@@ -9,7 +9,10 @@ import os
 import math
 
 
-class MonitoringStation:
+BLACK, WHITE = 0, 1
+
+
+class SpacePolice:
     def __init__(self, _map=None):
         if _map is None:
             with open(os.path.join('inputs', '{}.txt'.format(__file__.split('/')[-1].split('.')[0]))) as f:
@@ -24,6 +27,16 @@ class MonitoringStation:
         ]
 
         self.map = _map
+
+    def paint(self):
+        """
+        Provide 0 if the robot is over a black panel or 1 if the robot is over a white panel.
+        Then, the program will output two values:
+
+        Returns:
+
+        """
+        inputs = BLACK, WHITE
 
 
 
