@@ -35,11 +35,11 @@ class SpacePolice:
 
     def _get_step(self):
         if self.direction == 0:
-            return (0, 1)
+            return (0, -1)
         if self.direction == 1:
             return (1, 0)
         if self.direction == 2:
-            return (0, -1)
+            return (0, 1)
         if self.direction == 3:
             return (-1, 0)
 
@@ -55,31 +55,42 @@ class SpacePolice:
         poses = [pos]
         dirs = [self.direction]
         while True:
+            # print(list(self.computer.memory.values()))
             try:
                 # provide 0 if the robot is over a black panel or 1 if the robot is over a white panel.
                 state = self.map.get(pos)
-                print(pos)
+                # print(pos)
+
+
                 curr_color = 1 if state and state[0] else 0
+                if not state:
+                    inp_msg = f'default ({curr_color})'
+                else:
+                    inp_msg = curr_color
+
                 self.computer.feed(curr_color)
+                print(f'input {inp_msg}')
+                print()
 
                 # First, it will output a value indicating the color to paint the panel the robot is over:
                 # 0 means to paint the panel black, and 1 means to paint the panel white
                 color = next(self.computer)
-                print('WHITE' if color else 'BLACK')
+                # print('WHITE' if color else 'BLACK')
 
                 # Second, it will output a value indicating the direction the robot should turn:
                 # 0 means it should turn left 90 degrees, and 1 means it should turn right 90 degrees.
                 turn = next(self.computer)
-                print('RIGHT' if turn else 'LEFT')
+                # print('RIGHT' if turn else 'LEFT')
 
-                if pos in self.map:
-                    a = 0
+                print(f'on position {pos} got paint {color} turn {turn}')
+
                 self.map[pos] = color, True
 
                 self._update_direction(turn)
 
                 step = self._get_step()
                 pos = tuple(map(operator.add, pos, step))
+                print(f'move to  {pos}')
 
                 poses += [pos]
                 dirs += [self.direction]
