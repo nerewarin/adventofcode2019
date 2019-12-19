@@ -16,4 +16,4 @@ def get_puzzle_input():
     fpath = os.path.join('inputs', '{}.txt'.format(get_initiator_fname()))
     print('reading {}'.format(fpath))
     with open(fpath, 'r') as f:
-        return (int(i) for i in f.readline().split(','))
+        return [int(i) for i in f.readline().split(',')]
