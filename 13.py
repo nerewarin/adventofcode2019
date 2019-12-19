@@ -5,21 +5,10 @@ https://adventofcode.com/2019/day/13
 
 """
 
-import itertools
 import collections
 
-from dataclasses import dataclass
-
 import _tools
-
-
-def _get_param(data, param, mode, base):
-    if mode == 0:
-        return data[param]
-    elif mode == 1:
-        return param
-    elif mode == 2:
-        return data[param + base]
+from _intcode_computer import IntcodeComputer
 
 BLOCK_SYMBOL = '='
 BALL_SYMBOL = 'o'
@@ -32,333 +21,88 @@ TILE2DRAW = {
     4: BALL_SYMBOL ,  # is a ball tile. The ball moves diagonally and bounces off objects.
 }
 
-def run1(code):
-    data = code[:]
-    data.extend([0] * 1000)
+class IntcodeComputer13_1(IntcodeComputer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.canvas = collections.defaultdict(str)
 
-    input_ = []
-    output = []
+    def _on_step_start(self):
+        if len(self.output) == 3:
+            print('_step', self._step)
 
-    relative_base = 0
-    pos = 0
-
-    canvas = collections.defaultdict(str)
-    _step = -1
-    while True:
-        if len(output) == 3:
-            _step += 1
-            print('_step', _step)
-
-            x, y, tile_id = output
-            print(output)
+            x, y, tile_id = self.output
+            print(self.output)
             draw_symbol = TILE2DRAW[tile_id]
             _pos = (x, y)
-            canvas[_pos] = draw_symbol
+            self.canvas[_pos] = draw_symbol
 
-            ys = [pos[1] for pos in canvas.keys()]
-            xs = [pos[0] for pos in canvas.keys()]
+            ys = [pos[1] for pos in self.canvas.keys()]
+            xs = [pos[0] for pos in self.canvas.keys()]
             min_y, max_y = min(ys), max(ys)
             min_x, max_x = min(xs), max(xs)
 
             print('y from {} to {}'.format(min_y, max_y))
             print('x from {} to {}'.format(min_x, max_x))
             for _y in range(min_y, max_y + 1):
-                line = [canvas.get((_x, _y), '.') for _x in range(min_x, max_x + 1)]
+                line = [self.canvas.get((_x, _y), '.') for _x in range(min_x, max_x + 1)]
                 print(''.join(line))
-            output = []
-
-        instruction = data[pos]
-        instruction_str = f'{instruction:05d}'
-
-        op_code = int(instruction_str[-2:])
-        mode1 = int(instruction_str[-3])
-        mode2 = int(instruction_str[-4])
-        mode3 = int(instruction_str[-5])
-        if mode3 == 2:
-            pass
-
-        if op_code == 1:
-            op1, op2, op3 = data[pos + 1], data[pos + 2], data[pos + 3]
-            op1, op2 = _get_param(data, op1, mode1, relative_base), _get_param(data, op2, mode2, relative_base)
-            if mode3 == 2:
-                op3 += relative_base
-
-            data[op3] = op1 + op2
-
-            pos += 4
-        elif op_code == 2:
-            op1, op2, op3 = data[pos + 1], data[pos + 2], data[pos + 3]
-            op1, op2 = _get_param(data, op1, mode1, relative_base), _get_param(data, op2, mode2, relative_base)
-            if mode3 == 2:
-                op3 += relative_base
-
-            data[op3] = op1 * op2
-
-            pos += 4
-        elif op_code == 3:
-            op1 = data[pos + 1]
-            if mode1 == 2:
-                op1 += relative_base
-            else:
-                pass
-                # op1 = _get_param(data, op1, mode1, relative_base)
-            data[op1] = input_.pop()
-
-            pos += 2
-
-        elif op_code == 4:
-            op1 = data[pos + 1]
-            if mode1 == 2:
-                op1 += relative_base
-                op1 = data[op1]
-            else:
-                op1 = _get_param(data, op1, mode1, relative_base)
-
-            output.append(op1)
-            pos += 2
-
-        elif op_code == 5:
-            op1 = data[pos + 1]
-            op1 = _get_param(data, op1, mode1, relative_base)
-            if op1 != 0:
-                op2 = data[pos + 2]
-                op2 = _get_param(data, op2, mode2, relative_base)
-                pos = op2
-            else:
-                pos += 3
-
-        elif op_code == 6:
-            op1 = data[pos + 1]
-            op1 = _get_param(data, op1, mode1, relative_base)
-            if op1 == 0:
-                op2 = data[pos + 2]
-                op2 = _get_param(data, op2, mode2, relative_base)
-                pos = op2
-            else:
-                pos += 3
-
-        elif op_code == 7:
-            op1, op2, op3 = data[pos + 1], data[pos + 2], data[pos + 3]
-            op1, op2 = _get_param(data, op1, mode1, relative_base), _get_param(data, op2, mode2, relative_base)
-
-            if mode3 == 2:
-                op3 += relative_base
-
-            data[op3] = int(op1 < op2)
-
-            pos += 4
-
-        elif op_code == 8:
-            op1, op2, op3 = data[pos + 1], data[pos + 2], data[pos + 3]
-            op1, op2 = _get_param(data, op1, mode1, relative_base), _get_param(data, op2, mode2, relative_base)
-
-            if mode3 == 2:
-                op3 += relative_base
-
-            data[op3] = int(op1 == op2)
-
-            pos += 4
-
-        elif op_code == 9:
-            op1 = data[pos + 1]
-            op1 = _get_param(data, op1, mode1, relative_base)
-            relative_base += op1
-
-            pos += 2
-
-        elif op_code == 99:
-            break
-        else:
-            # error
-            print(f'bad opp code: pos {pos} op_code {op_code}')
-            raise ValueError(f'bad opp code: pos {pos} op_code {op_code}')
-
-    return canvas
+            self.output = []
 
 
+class IntcodeComputer13_2(IntcodeComputer13_1):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.memory[0] = 2
+        self.score = None
 
-def run2(code):
-    data = code[:]
-    data.extend([0] * 1000)
-    data[0] = 2 # this is a specific!!!!!!!
-
-    output = []
-
-    relative_base = 0
-    pos = 0
-
-    canvas = collections.defaultdict(str)
-    _step = -1
-    score = 0
-    while True:
-        if len(output) == 3:
-            x, y, out3 = output
+    def _on_step_start(self):
+        if len(self.output) == 3:
+            x, y, out3 = self.output
             # print(output)
 
             _pos = (x, y)
             if _pos == (-1, 0):
                 # the new score to show in the segment display
-                score = out3
+                self.score = out3
             else:
                 draw_symbol = TILE2DRAW[out3]
-            canvas[_pos] = draw_symbol
+                self.canvas[_pos] = draw_symbol
 
+            self.output = []
 
-            ys = [pos[1] for pos in canvas.keys()]
-            xs = [pos[0] for pos in canvas.keys()]
-            min_y, max_y = min(ys), max(ys)
-            min_x, max_x = min(xs), max(xs)
+    def _get_op3_input(self):
+        ball_symbol_x = [pos for pos, tile_symbol in self.canvas.items() if tile_symbol == BALL_SYMBOL][0][0]
+        horizontal_paddle_x = [pos for pos, tile_symbol in self.canvas.items() if tile_symbol == HORIZONTAL_PADDLE][0][0]
 
-            output = []
-
-        instruction = data[pos]
-        instruction_str = f'{instruction:05d}'
-
-        op_code = int(instruction_str[-2:])
-        mode1 = int(instruction_str[-3])
-        mode2 = int(instruction_str[-4])
-        mode3 = int(instruction_str[-5])
-        if mode3 == 2:
-            pass
-
-        if op_code == 1:
-            op1, op2, op3 = data[pos + 1], data[pos + 2], data[pos + 3]
-            op1, op2 = _get_param(data, op1, mode1, relative_base), _get_param(data, op2, mode2, relative_base)
-            if mode3 == 2:
-                op3 += relative_base
-
-            data[op3] = op1 + op2
-
-            pos += 4
-        elif op_code == 2:
-            op1, op2, op3 = data[pos + 1], data[pos + 2], data[pos + 3]
-            op1, op2 = _get_param(data, op1, mode1, relative_base), _get_param(data, op2, mode2, relative_base)
-            if mode3 == 2:
-                op3 += relative_base
-
-            data[op3] = op1 * op2
-
-            pos += 4
-        elif op_code == 3:
-            op1 = data[pos + 1]
-            if mode1 == 2:
-                op1 += relative_base
-            else:
-                pass
-                # op1 = _get_param(data, op1, mode1, relative_base)
-
-            _step += 1
-            print('_step', _step)
-            print('score', score)
-            print('y from {} to {}'.format(min_y, max_y))
-            print('x from {} to {}'.format(min_x, max_x))
-            for _y in range(min_y, max_y + 1):
-                line = [canvas.get((_x, _y), '.') for _x in range(min_x, max_x + 1)]
-                print(''.join(line))
-
-            ball_symbol_x = [pos for pos, tile_symbol in canvas.items() if tile_symbol == BALL_SYMBOL][0][0]
-            horizontal_paddle_x = [pos for pos, tile_symbol in canvas.items() if tile_symbol == HORIZONTAL_PADDLE][0][0]
-
-            if ball_symbol_x > horizontal_paddle_x:
-                shift_action = 1
-            elif ball_symbol_x  == horizontal_paddle_x:
-                shift_action = 0
-            else:
-                shift_action = -1
-
-            data[op1] = shift_action
-
-            pos += 2
-
-        elif op_code == 4:
-            op1 = data[pos + 1]
-            if mode1 == 2:
-                op1 += relative_base
-                op1 = data[op1]
-            else:
-                op1 = _get_param(data, op1, mode1, relative_base)
-
-            output.append(op1)
-            pos += 2
-
-        elif op_code == 5:
-            op1 = data[pos + 1]
-            op1 = _get_param(data, op1, mode1, relative_base)
-            if op1 != 0:
-                op2 = data[pos + 2]
-                op2 = _get_param(data, op2, mode2, relative_base)
-                pos = op2
-            else:
-                pos += 3
-
-        elif op_code == 6:
-            op1 = data[pos + 1]
-            op1 = _get_param(data, op1, mode1, relative_base)
-            if op1 == 0:
-                op2 = data[pos + 2]
-                op2 = _get_param(data, op2, mode2, relative_base)
-                pos = op2
-            else:
-                pos += 3
-
-        elif op_code == 7:
-            op1, op2, op3 = data[pos + 1], data[pos + 2], data[pos + 3]
-            op1, op2 = _get_param(data, op1, mode1, relative_base), _get_param(data, op2, mode2, relative_base)
-
-            if mode3 == 2:
-                op3 += relative_base
-
-            data[op3] = int(op1 < op2)
-
-            pos += 4
-
-        elif op_code == 8:
-            op1, op2, op3 = data[pos + 1], data[pos + 2], data[pos + 3]
-            op1, op2 = _get_param(data, op1, mode1, relative_base), _get_param(data, op2, mode2, relative_base)
-
-            if mode3 == 2:
-                op3 += relative_base
-
-            data[op3] = int(op1 == op2)
-
-            pos += 4
-
-        elif op_code == 9:
-            op1 = data[pos + 1]
-            op1 = _get_param(data, op1, mode1, relative_base)
-            relative_base += op1
-
-            pos += 2
-
-        elif op_code == 99:
-            break
+        if ball_symbol_x > horizontal_paddle_x:
+            shift_action = 1
+        elif ball_symbol_x == horizontal_paddle_x:
+            shift_action = 0
         else:
-            # error
-            print(f'bad opp code: pos {pos} op_code {op_code}')
-            raise ValueError(f'bad opp code: pos {pos} op_code {op_code}')
+            shift_action = -1
 
-    return score
-
+        return shift_action
 
 def part1():
-    data = _tools.get_puzzle_input()
-    canvas = run1(data)
+    computer = IntcodeComputer13_1()
+    computer.compute()
 
     blocks = 0
-    for tile_symbol in canvas.values():
+    for tile_symbol in computer.canvas.values():
         if tile_symbol == BLOCK_SYMBOL:
             blocks += 1
 
     return blocks
 
 def part2():
-    data = _tools.get_puzzle_input()
-    return run2(data)
+    computer = IntcodeComputer13_2()
+    computer.compute()
+    return computer.score
 
 
 if __name__ == '__main__':
     for res in (
-        # part1(),
-        part2(),
+        part1(), # 376
+        part2(), # 18509
     ):
         print(res)

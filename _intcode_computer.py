@@ -1,26 +1,28 @@
-import os
-import collections
-
 from typing import Iterator
-from _tools import get_initiator_fname
+from _tools import get_puzzle_input
+
+
+default_memory = get_puzzle_input()
 
 
 class IntcodeComputer(Iterator):
-    def __init__(self, memory=None, signals=None):
+    def __init__(self, memory=None, signals=None, gen_mode=False):
         if memory is None:
-            fname = get_initiator_fname()
-            with open(os.path.join('inputs', '{}.txt'.format(fname))) as f:
-                memory = f.read()
-        memory = [int(x) for x in memory.split(',')]
+            memory = default_memory
+        else:
+            memory = [int(x) for x in memory.split(',')]
 
         self.signals = signals or []
 
-        self.memory = collections.defaultdict(int)
-        self.memory.update({
-            idx: value for idx, value in enumerate(memory)
-        })
+        self.gen_mode = gen_mode
+        self.gen = self._compute(gen_mode) if gen_mode else None
+        self.memory = memory[:]
+        self.memory.extend([0] * 1000)
+
         self.relative_base = 0
-        self.gen = self.compute(gen_mode=True)
+
+        self.output = []
+        self._step = -1
 
     def __next__(self):
         return next(self.gen)
@@ -56,97 +58,140 @@ class IntcodeComputer(Iterator):
         else:
             raise ValueError("mode {} is unknown".format(mode))
 
-    def compute(self, gen_mode=False):
-        curr_idx = 0
-        _step = 0
+    def _get_op3_input(self):
+        return self.signals.pop(0)
+
+    def _on_step_start(self):
+        pass
+
+    def compute(self):
+        return list(self._compute())
+
+    def _compute(self, gen_mode=False):
+        def _get_param(data, param, mode, base):
+            if mode == 0:
+                return data[param]
+            elif mode == 1:
+                return param
+            elif mode == 2:
+                return data[param + base]
+
+        data = self.memory
+
+        relative_base = 0
+        pos = 0
+
         while True:
-            print('_step', _step)
-            for i in range(1683):
-                print(self.memory[i])
+            self._step += 1
 
-            instruction = self.memory[curr_idx]
+            self._on_step_start()
 
-            op = instruction % 100
+            instruction = data[pos]
+            instruction_str = f'{instruction:05d}'
 
-            _ins = instruction // 100
-            mode1 = _ins % 10
+            op_code = int(instruction_str[-2:])
+            mode1 = int(instruction_str[-3])
+            mode2 = int(instruction_str[-4])
+            mode3 = int(instruction_str[-5])
+            if mode3 == 2:
+                pass
 
-            _ins = _ins // 10
-            mode2 = _ins % 10
+            if op_code == 1:
+                op1, op2, op3 = data[pos + 1], data[pos + 2], data[pos + 3]
+                op1, op2 = _get_param(data, op1, mode1, relative_base), _get_param(data, op2, mode2, relative_base)
+                if mode3 == 2:
+                    op3 += relative_base
 
-            _ins = _ins // 10
-            mode3 = _ins % 10
+                data[op3] = op1 + op2
 
-            if op == 99:
-                return self.memory[0]
+                pos += 4
+            elif op_code == 2:
+                op1, op2, op3 = data[pos + 1], data[pos + 2], data[pos + 3]
+                op1, op2 = _get_param(data, op1, mode1, relative_base), _get_param(data, op2, mode2, relative_base)
+                if mode3 == 2:
+                    op3 += relative_base
 
-            param1 = self.memory[curr_idx + 1]
-            param2 = self.memory[curr_idx + 2]
-            try:
-                param3 = self.memory[curr_idx + 3]
-            except KeyError:
-                param3 = None  # dirty but who cares
+                data[op3] = op1 * op2
 
-            if op < 3:
-                shift = 4
-                idx = self.get_write_idx(param3, mode3)
-                if op == 1:
-                    self.memory[idx] = self.get_value(param1, mode1) + self.get_value(param2, mode2)
-                elif op == 2:
-                    self.memory[idx] = self.get_value(param1, mode1) * self.get_value(param2, mode2)
-            elif op < 5:
-                shift = 2
-                if op == 3:
-                    # Opcode 3 takes a single integer as input and saves it to the position given by its only parameter
-                    # idx = self.relative_base + param1
-                    # idx = self.get_value(param1, mode1)
-                    # idx = param1
-                    idx = self.get_write_idx(param3, mode3)
-                    if self.signals:
-                        signal = self.signals.pop(0)
-                    else:
-                        signal = int(input('input:'))
-                    self.memory[idx] = signal
-                elif op == 4:
-                    out = self.get_value(param1, mode1)
-                    if out not in range(3):
-                        # The repair droid can reply with any of the following status codes:
-                        # 0: The repair droid hit a wall. Its position has not changed.
-                        # 1: The repair droid has moved one step in the requested direction.
-                        # 2: The repair droid has moved one step in the requested direction; its new position is the location of the oxygen system.
-                        raise ValueError('wrong output {}'.format(out))
-                    if gen_mode:
-                        yield out
-                    else:
-                        return out
-            elif op < 7:
-                # jump-if-true
-                if op == 5 and self.get_value(param1, mode1):
-                    shift = self.get_value(param2, mode2) - curr_idx
-                # jump-if-false
-                elif op == 6 and not self.get_value(param1, mode1):
-                    shift = self.get_value(param2, mode2) - curr_idx
+                pos += 4
+            elif op_code == 3:
+                op1 = data[pos + 1]
+                if mode1 == 2:
+                    op1 += relative_base
                 else:
-                    shift = 3
-            elif op < 9:
-                # less than
-                if op == 7 and self.get_value(param1, mode1) < self.get_value(param2, mode2):
-                    _val = 1
-                # equals
-                elif op == 8 and self.get_value(param1, mode1) == self.get_value(param2, mode2):
-                    _val = 1
+                    pass
+
+                data[op1] = self._get_op3_input()
+
+                pos += 2
+
+            elif op_code == 4:
+                op1 = data[pos + 1]
+                if mode1 == 2:
+                    op1 += relative_base
+                    op1 = data[op1]
                 else:
-                    _val = 0
-                idx = self.get_write_idx(param3, mode3)
-                self.memory[idx] = _val
-                shift = 4
-            elif op == 9:
-                # Opcode 9 adjusts the relative base by the value of its only parameter
-                self.relative_base += self.get_value(param1, mode1)
-                shift = 2
+                    op1 = _get_param(data, op1, mode1, relative_base)
+
+                self.output.append(op1)
+                if gen_mode:
+                    yield op1
+                pos += 2
+
+            elif op_code == 5:
+                op1 = data[pos + 1]
+                op1 = _get_param(data, op1, mode1, relative_base)
+                if op1 != 0:
+                    op2 = data[pos + 2]
+                    op2 = _get_param(data, op2, mode2, relative_base)
+                    pos = op2
+                else:
+                    pos += 3
+
+            elif op_code == 6:
+                op1 = data[pos + 1]
+                op1 = _get_param(data, op1, mode1, relative_base)
+                if op1 == 0:
+                    op2 = data[pos + 2]
+                    op2 = _get_param(data, op2, mode2, relative_base)
+                    pos = op2
+                else:
+                    pos += 3
+
+            elif op_code == 7:
+                op1, op2, op3 = data[pos + 1], data[pos + 2], data[pos + 3]
+                op1, op2 = _get_param(data, op1, mode1, relative_base), _get_param(data, op2, mode2, relative_base)
+
+                if mode3 == 2:
+                    op3 += relative_base
+
+                data[op3] = int(op1 < op2)
+
+                pos += 4
+
+            elif op_code == 8:
+                op1, op2, op3 = data[pos + 1], data[pos + 2], data[pos + 3]
+                op1, op2 = _get_param(data, op1, mode1, relative_base), _get_param(data, op2, mode2, relative_base)
+
+                if mode3 == 2:
+                    op3 += relative_base
+
+                data[op3] = int(op1 == op2)
+
+                pos += 4
+
+            elif op_code == 9:
+                op1 = data[pos + 1]
+                op1 = _get_param(data, op1, mode1, relative_base)
+                relative_base += op1
+
+                pos += 2
+
+            elif op_code == 99:
+                break
             else:
-                raise NotImplemented("op={} is unknown".format(op))
+                # error
+                print(f'bad opp code: pos {pos} op_code {op_code}')
+                raise ValueError(f'bad opp code: pos {pos} op_code {op_code}')
 
-            _step += 1
-
-            curr_idx += shift
+        return None
