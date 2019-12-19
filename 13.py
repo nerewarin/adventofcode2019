@@ -1,9 +1,16 @@
+"""
+--- Day 13: Care Package ---
+
+https://adventofcode.com/2019/day/13
+
+"""
+
+import itertools
 import collections
 
+from dataclasses import dataclass
 
-def get_input():
-    with open('inputs/11.txt', 'r') as f:
-        return (int(i) for i in f.readline().split(','))
+import _tools
 
 
 def _get_param(data, param, mode, base):
@@ -14,16 +21,26 @@ def _get_param(data, param, mode, base):
     elif mode == 2:
         return data[param + base]
 
+BLOCK_SYMBOL = '='
+
 
 def run(code):
     data = code[:]
     data.extend([0] * 1000)
 
-    robot_pos = (0, 0)
-    # up, left, down, right
-    directions = [(0, -1), (-1, 0), (0, 1), (1, 0)]
-    direction = 0
-    colors = collections.defaultdict(list)
+    # robot_pos = (0, 0)
+    # # up, left, down, right
+    # directions = [(0, -1), (-1, 0), (0, 1), (1, 0)]
+    # direction = 0
+    # colors = collections.defaultdict(list)
+
+    tile2draw = {
+        0: '.',  # is an empty tile. No game object appears in this tile.
+        1: 'X',  # is a wall tile. Walls are indestructible barriers.
+        2: BLOCK_SYMBOL,  # is a block tile. Blocks can be broken by the ball.
+        3: '-',  # is a horizontal paddle tile. The paddle is indestructible.
+        4: 'o',  # is a ball tile. The ball moves diagonally and bounces off objects.
+    }
 
     input_ = []
     output = []
@@ -31,38 +48,36 @@ def run(code):
     relative_base = 0
     pos = 0
 
-    input_.append(1)
+    # input_.append(1)
 
-    print('start input 0')
+    canvas = collections.defaultdict(str)
     _step = -1
     while True:
-        _step += 1
-        print('_step', _step)
-        for d in data:
-            print(d)
-        if len(output) == 2:
-            # paint
-            colors[robot_pos].append(output.pop(0))
-            turn = output.pop(0)
-            if turn == 0:
-                # turn left
-                direction = (direction + 1) % 4
-            elif turn == 1:
-                # turn right
-                direction = (direction - 1) % 4
+        # for d in data:
+        #     print(d)
+        if len(output) == 3:
+            _step += 1
+            print('_step', _step)
 
-            print('on position {} got paint {} turn {}'.format(robot_pos, colors[robot_pos][-1], turn))
+            x, y, tile_id = output
+            print(output)
+            draw_symbol = tile2draw[tile_id]
+            _pos = (x, y)
+            if _pos in canvas:
+                a = 0
+            canvas[_pos] = draw_symbol
 
-            robot_pos = (robot_pos[0] + directions[direction][0], robot_pos[1] + directions[direction][1])
-            print('move to ', robot_pos)
-            # calc input
-            if robot_pos in colors:
-                print('input ', colors[robot_pos][-1])
-                input_.append(colors[robot_pos][-1])
-            else:
-                print('input default (0)')
-                input_.append(0)
-            print()
+            ys = [pos[1] for pos in canvas.keys()]
+            xs = [pos[0] for pos in canvas.keys()]
+            min_y, max_y = min(ys), max(ys)
+            min_x, max_x = min(xs), max(xs)
+
+            print('y from {} to {}'.format(min_y, max_y))
+            print('x from {} to {}'.format(min_x, max_x))
+            for _y in range(min_y, max_y + 1):
+                line = [canvas.get((_x, _y), '.') for _x in range(min_x, max_x + 1)]
+                print(''.join(line))
+            output = []
 
         instruction = data[pos]
         instruction_str = f'{instruction:05d}'
@@ -170,43 +185,32 @@ def run(code):
             print(f'bad opp code: pos {pos} op_code {op_code}')
             raise ValueError(f'bad opp code: pos {pos} op_code {op_code}')
 
-    return colors
+    return canvas
 
 
 def solve(data):
     data = list(data)
-    output = run(data)
-    print(len(output))
+    canvas = run(data)
 
-    print('output')
-    for n, (i, color) in enumerate(output.items()):
-        print(i, color)
+    blocks = 0
+    for tile_symbol in canvas.values():
+        if tile_symbol == BLOCK_SYMBOL:
+            blocks += 1
 
-    min_y = min(i[1] for i in output)
-    max_y = max(i[1] for i in output)
-    min_x = min(i[0] for i in output)
-    max_x = max(i[0] for i in output)
-
-    for y in range(min_y, max_y+1):
-        for x in range(min_x, max_x + 1):
-            if (x, y) in output:
-                color = output[(x, y)][-1]
-            else:
-                color = -1
-
-            print(('_', '#', '.')[color], end='')
-        print()
-
-    print(len(output))
-    return None
+    return blocks
 
 
-def main():
-    data = get_input()
-    print(solve(data))
+def part1():
+    data = _tools.get_puzzle_input()
+    return solve(data)
 
 
 if __name__ == '__main__':
-    main()
-
-# 87571
+    for res in (
+        # test(1),
+        part1(),
+        # test(2),
+        # test(3),
+        # part2(),
+    ):
+        print(res)

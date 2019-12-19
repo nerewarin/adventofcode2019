@@ -1,24 +1,14 @@
 import os
-import re
 import collections
-import traceback
 
 from typing import Iterator
-
-
-def _get_initiator_fname():
-    # define script that has called us - previous py filename from callstack
-    for line in reversed(traceback.format_stack()):
-        res = re.search(r'File.*"(.*)[\\\/](\d+).py', line)
-        if res:
-            return res.group(2)
-    raise ValueError()
+from _tools import get_initiator_fname
 
 
 class IntcodeComputer(Iterator):
     def __init__(self, memory=None, signals=None):
         if memory is None:
-            fname = _get_initiator_fname()
+            fname = get_initiator_fname()
             with open(os.path.join('inputs', '{}.txt'.format(fname))) as f:
                 memory = f.read()
         memory = [int(x) for x in memory.split(',')]
@@ -68,7 +58,12 @@ class IntcodeComputer(Iterator):
 
     def compute(self, gen_mode=False):
         curr_idx = 0
+        _step = 0
         while True:
+            print('_step', _step)
+            for i in range(1683):
+                print(self.memory[i])
+
             instruction = self.memory[curr_idx]
 
             op = instruction % 100
@@ -151,5 +146,7 @@ class IntcodeComputer(Iterator):
                 shift = 2
             else:
                 raise NotImplemented("op={} is unknown".format(op))
+
+            _step += 1
 
             curr_idx += shift

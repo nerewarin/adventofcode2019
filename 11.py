@@ -37,11 +37,11 @@ class SpacePolice:
         if self.direction == 0:
             return (0, -1)
         if self.direction == 1:
-            return (1, 0)
+            return (-1, 0)
         if self.direction == 2:
             return (0, 1)
         if self.direction == 3:
-            return (-1, 0)
+            return (1, 0)
 
     def paint(self):
         """
