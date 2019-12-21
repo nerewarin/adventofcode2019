@@ -34,7 +34,7 @@ class SpringScript:
     _jump_size = 4
     _rexp = re.compile(r'(\w+)\s+(\w)\s(\w)')
 
-    def __init__(self, to_draw=False):
+    def __init__(self, to_draw=False, extended_mode=False):
         self.to_draw = to_draw
         # Two registers are available: T, the temporary value register, and J, the jump register
 
@@ -49,9 +49,16 @@ class SpringScript:
             'B': False,  # is there ground 2 tiles away
             'C': False,  # is there ground 3 tiles away
             'D': False,  # is there ground 4 tiles away
+            'E': False,
+            'F': False,
+            'G': False,
+            'H': False,
+            'I': False,
         }
 
         self.computer = IntcodeComputer21()
+
+        self.extended_mode = extended_mode
 
     @staticmethod
     def _check_is_writable(y):
@@ -83,13 +90,15 @@ class SpringScript:
         return [ord(c) for c in s] + [10]
 
     def _test(self, program, test_map):
-        for idx, reg in enumerate([
-            'A', 'B', 'C', 'D'
-        ]):
-            self.registers[reg] = test_map[idx]
+        for idx, reg in enumerate(
+            ['A', 'B', 'C', 'D'] if not self.extended_mode
+            else ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
+        ):
+            v = test_map[idx]
+            self.registers[reg] = v
 
         for line in program:
-            if line == 'WALK':
+            if line in ('WALK', 'RUN'):
                 break
             res = self._rexp.match(line)
             if not res:
@@ -108,10 +117,13 @@ class SpringScript:
             print(f'{instr} {x} {y}')
             print('{}'.format({k: v for k, v in self.registers.items() if v != _reg[k]}))
 
+        res = False
         if self.registers['J']:
             print('jump!')
+            res = True
+
         print()
-        return
+        return res
 
     def _get_walk_program(self):
         """
@@ -125,28 +137,43 @@ class SpringScript:
             list of int: ASCII code
 
         """
+        # _jump_if_ground4 = '''
+        #     OR {} J   # jump if ground in 4 steps
+        # _jump_if_ground4 = 'OR E J'
         _jump_if_ground4 = '''
-            OR D J   # jump if ground in 4 steps 
-        '''
+            OR D J
+            {}
+        '''.format(
+            '' if not self.extended_mode
+            else '''
+                OR H T
+                OR E T
+                AND T J
+            '''
+        )
 
-        _dont_jump_if_no_hole = '''
+        _but_dont_jump_if_no_hole = '''
             NOT A T  # 1 if need jump
             NOT T T  # 0 if need jump
             AND B T  # 0 if need jump
             AND C T  # 0 if need jump (one of three tiles has hole)
-            
+            {}
             NOT T T  # 1 if need jump
             AND T J
-        '''
+        '''.format(
+            # '\n'.join(('AND {} T'.format(s) for s in 'DEF')) if self.extended_mode
+            '' if self.extended_mode
+            else ''
+        )
 
+        do = 'RUN' if self.extended_mode else 'WALK'
         _program = f'''
             {_jump_if_ground4}
             
-            {_dont_jump_if_no_hole}
+            {_but_dont_jump_if_no_hole}
             
-            WALK
+            {do}
         '''
-
         program = []
         for _line in _program.split('\n'):
             line = _line.strip()
@@ -168,7 +195,22 @@ class SpringScript:
 
             program.append(line)
 
-        # self._test(program, [1, 1, 1, 1, 1, 0, 1])
+        if self.extended_mode:
+            # self._test(program, [1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, ])
+
+            # bad = '#####..#@########'
+            # bad = '#####...#########'
+            # bad = '#####..#.########'
+            # bad = '#####.#.#...#.###'
+            bad = '##.#.#...#.###'
+            map = [{'#': 1}.get(x, 0) for x in bad]
+            assert not self._test(program, map)
+
+            bad = '##...#########'
+            map = [{'#': 1}.get(x, 0) for x in bad]
+            assert not self._test(program, map)
+        else:
+            self._test(program, [1, 1, 1, 1, 1, 0, 1])
 
         codes = []
         for instruction in program:
@@ -197,8 +239,13 @@ def part1(*args, **kwargs):
     return SpringScript(*args, **kwargs).get_amout_of_hull_damage()
 
 
+def part2(*args, **kwargs):
+    return SpringScript(extended_mode=True).get_amout_of_hull_damage()
+
+
 if __name__ == '__main__':
     for res in (
         part1(),
+        part2(),
     ):
         print(res)
