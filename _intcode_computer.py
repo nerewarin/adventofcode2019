@@ -6,7 +6,7 @@ default_memory = get_puzzle_input()
 
 
 class IntcodeComputer(Iterator):
-    def __init__(self, memory=None, signals=None, gen_mode=False):
+    def __init__(self, memory=None, signals=None):
         if memory is None:
             memory = default_memory
         else:
@@ -14,8 +14,7 @@ class IntcodeComputer(Iterator):
 
         self.signals = signals or []
 
-        self.gen_mode = gen_mode
-        self.gen = self._compute(gen_mode) if gen_mode else None
+        self.gen = self._compute()
         self.memory = memory[:]
         self.memory.extend([0] * 1000)
 
@@ -67,7 +66,7 @@ class IntcodeComputer(Iterator):
     def compute(self):
         return list(self._compute())
 
-    def _compute(self, gen_mode=False):
+    def _compute(self):
         def _get_param(data, param, mode, base):
             if mode == 0:
                 return data[param]
@@ -134,8 +133,7 @@ class IntcodeComputer(Iterator):
                     op1 = _get_param(data, op1, mode1, relative_base)
 
                 self.output.append(op1)
-                if gen_mode:
-                    yield op1
+                yield op1
                 pos += 2
 
             elif op_code == 5:
