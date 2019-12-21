@@ -21,6 +21,7 @@ TILE2DRAW = {
     4: BALL_SYMBOL ,  # is a ball tile. The ball moves diagonally and bounces off objects.
 }
 
+
 class IntcodeComputer13_1(IntcodeComputer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
