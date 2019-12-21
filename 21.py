@@ -5,7 +5,7 @@ https://adventofcode.com/2019/day/21
 
 """
 
-import collections
+import re
 
 from _intcode_computer import IntcodeComputer
 
@@ -31,6 +31,9 @@ class IntcodeComputer21(IntcodeComputer):
 
 
 class SpringScript:
+    _jump_size = 4
+    _rexp = re.compile(r'(\w+)\s+(\w)\s(\w)')
+
     def __init__(self, to_draw=False):
         self.to_draw = to_draw
         # Two registers are available: T, the temporary value register, and J, the jump register
@@ -79,6 +82,37 @@ class SpringScript:
     def _get_string_in_ascii(s):
         return [ord(c) for c in s] + [10]
 
+    def _test(self, program, test_map):
+        for idx, reg in enumerate([
+            'A', 'B', 'C', 'D'
+        ]):
+            self.registers[reg] = test_map[idx]
+
+        for line in program:
+            if line == 'WALK':
+                break
+            res = self._rexp.match(line)
+            if not res:
+                raise ValueError(line)
+            instr, x, y = res.groups()
+            method = {
+                'AND': self._and,
+                'OR': self._or,
+                'NOT': self._not,
+            }[instr]
+            _reg = dict(self.registers)
+            print(_reg)
+
+            method(x, y)
+
+            print(f'{instr} {x} {y}')
+            print('{}'.format({k: v for k, v in self.registers.items() if v != _reg[k]}))
+
+        if self.registers['J']:
+            print('jump!')
+        print()
+        return
+
     def _get_walk_program(self):
         """
         There are only three instructions available in springscript:
@@ -91,27 +125,72 @@ class SpringScript:
             list of int: ASCII code
 
         """
+        _jump_if_ground4 = '''
+            OR D J   # jump if ground in 4 steps 
+        '''
+
+        _dont_jump_if_no_hole = '''
+            NOT A T  # 1 if need jump
+            NOT T T  # 0 if need jump
+            AND B T  # 0 if need jump
+            AND C T  # 0 if need jump (one of three tiles has hole)
+            
+            NOT T T  # 1 if need jump
+            AND T J
+        '''
+
+        _program = f'''
+            {_jump_if_ground4}
+            
+            {_dont_jump_if_no_hole}
+            
+            WALK
+        '''
+
+        program = []
+        for _line in _program.split('\n'):
+            line = _line.strip()
+            if not line:
+                continue
+            if line.startswith('#'):
+                continue
+            comment_idx = line.find('#')
+            if comment_idx > -1:
+                line = line[:comment_idx]
+                if not line:
+                    continue
+
+                for idx, symbol in enumerate(reversed(line)):
+                    if symbol.isalpha():
+                       break
+
+                line = line[:-idx]
+
+            program.append(line)
+
+        # self._test(program, [1, 1, 1, 1, 1, 0, 1])
+
+        codes = []
+        for instruction in program:
+            codes.extend(self._get_string_in_ascii(instruction))
+
+        return codes
 
     def get_amout_of_hull_damage(self):
-        # while self.computer.signals:
         try:
             for out in self.computer.gen:
-                # print(f'{chr(out)} ({out})', end='')
                 print(f'{chr(out)}', end='')
         except NoSignal:
-            # # now enter the program
-            # for instruction_code in self._get_walk_program():
-            #     self.computer.feed(instruction_code)
-
-            walk = self._get_string_in_ascii('WALK')
-            for instruction_code in walk:
+            # now enter the program
+            for instruction_code in self._get_walk_program():
+                print(f'{chr(instruction_code)}', end='')
                 self.computer.feed(instruction_code)
 
         try:
             for out in self.computer.gen:
                 print(f'{chr(out)}', end='')
-        except NoSignal:
-            a = 9
+        except ValueError:
+            return out
 
 
 def part1(*args, **kwargs):
