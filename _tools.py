@@ -1,5 +1,6 @@
 import os
 import re
+import math
 import traceback
 
 
@@ -19,3 +20,7 @@ def get_puzzle_input(scalar_type=int, delimeter=',', multiline=False):
         if not multiline:
             return [scalar_type(i.strip()) for i in f.readline().split(delimeter)]
         return [scalar_type(i.strip()) for i in f.readlines()]
+
+
+def lcm(a, b):
+    return a * b // math.gcd(a, b)

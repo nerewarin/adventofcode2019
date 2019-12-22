@@ -74,6 +74,56 @@ class SlamShuffle:
         self._shuffle()
         return self.deck.index(value)
 
+    @staticmethod
+    def _get_inct_pos(period, position, deck_size):
+        if position == 0:
+            return 0
+        return (period * position - 1) % deck_size
+
+    def reverse_shuffle(self, position, deck_size):
+        # keep track of changing value in individual position
+        original = position
+        _last_instruction = None
+        for instr_idx, raw_instruction in enumerate(self.inp):
+            print(f'{position}: {raw_instruction}')
+            if raw_instruction == 'deal into new stack':
+                position = (-position - 1) % deck_size
+                continue
+
+            _incr_instruction = self._increment_rexp.match(raw_instruction)
+            if _incr_instruction:
+                period = int(_incr_instruction.group(1))
+
+                # full_period = _tools.lcm(period, deck_size)
+                if position != 0:
+                    new_position = position
+                    steps = 1
+                    while True:
+                        old_position, rest = divmod(new_position,  period)
+                        if rest:
+                            new_position += deck_size
+                        else:
+                            break
+                        steps += 1
+                    position = old_position
+
+                _last_instruction = raw_instruction
+                continue
+
+            _cut_instruction = self._cut_rexp.match(raw_instruction)
+            if _cut_instruction:
+                idx = int(_cut_instruction.group(1))
+
+                _idx = idx % deck_size
+                position = (position - idx) % deck_size
+
+                assert position < deck_size
+                _last_instruction = raw_instruction
+                continue
+
+            raise ValueError(f'unknown {raw_instruction}')
+        return position
+
 
 def _str_to_deck(s):
     return [int(x) for x in s.split(' ')]
@@ -124,9 +174,33 @@ def part1(*args, **kwargs):
     return SlamShuffle(*args, **kwargs).get_position(2019)
 
 
+def part2(*args, **kwargs):
+    deck_size = 119315717514047
+    # ss = SlamShuffle(*args, deck_size=119315717514047, **kwargs)
+    ss = SlamShuffle(*args, **kwargs)
+    ss.inp = reversed(ss.inp)
+    pos2020 = 2020
+
+    print_step = 0.01
+    step2pos = {}
+    for x in range(101741582076661):
+        pos2020 = ss.reverse_shuffle(pos2020, deck_size)
+
+        if pos2020 == 2020:
+            raise ValueError()
+        # step2pos[pos2020] = x
+
+        if x > 101741582076661 * print_step:
+            print(f'{x} from 101741582076661 ({100*x/101741582076661}% complete)')
+            print_step += 0.01
+
+    return pos2020
+
+
 if __name__ == '__main__':
     for res in (
         # test1(),
-        part1(),
+        # part1(),
+        part2(),
     ):
         print(res)

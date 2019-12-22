@@ -6,12 +6,7 @@ https://adventofcode.com/2019/day/16
 """
 
 import os
-import math
-import re
-import itertools
-
-from dataclasses import dataclass
-from typing import Tuple
+import _tools
 
 
 class FFT:
@@ -26,9 +21,7 @@ class FFT:
         self.pattern_len = len(self.pattern)
         self.mode = mode
 
-    @staticmethod
-    def lcm(a, b):
-        return a * b // math.gcd(a, b)
+    lcm = _tools.lcm
 
     def run(self, phases):
         inp = self.inp
