@@ -1,7 +1,7 @@
 """
---- Day 23: Category Six ---
+--- Day 19: Tractor Beam ---
 
-https://adventofcode.com/2019/day/23
+https://adventofcode.com/2019/day/19
 
 """
 
@@ -43,21 +43,9 @@ class IntcodeComputer23(IntcodeComputer):
             raise LongIDLE()
 
 
-class NAT:
-    def __init__(self):
-        self.packet = collections.deque([], maxlen=2)
-
-    def feed(self, value):
-        self.packet.append(value)
-
-    def __next__(self):
-        return self.packet.popleft()
-
-    def __str__(self):
-        return f'NAT {self.packet}'
-
-
-class CategorySix:
+class TractorBeam:
+    _jump_size = 4
+    _rexp = re.compile(r'(\w+)\s+(\w)\s(\w)')
     _nat_address = 255
 
     def __init__(self, *args, network_size=50, **kwargs):
@@ -158,11 +146,11 @@ class CategorySix:
 
 
 def part1(*args, **kwargs):
-    return CategorySix(*args, **kwargs).get_first_packet_to(255)
+    return TractorBeam(*args, **kwargs).get_first_packet_to(255)
 
 
 def part2(*args, **kwargs):
-    return CategorySix(*args, **kwargs).get_first_duplicate_y_from_NAT_to(0)
+    return TractorBeam(*args, **kwargs).get_first_duplicate_y_from_NAT_to(0)
 
 
 def test_nat():
