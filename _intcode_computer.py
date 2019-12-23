@@ -1,11 +1,14 @@
 import collections
 from typing import Iterator
-from copy import copy, deepcopy
 
 from _tools import get_puzzle_input
 
 
 default_memory = get_puzzle_input()
+
+
+class NoSignal(Exception):
+    pass
 
 
 class Memory(collections.defaultdict):
@@ -86,7 +89,11 @@ class IntcodeComputer(Iterator):
             raise ValueError("mode {} is unknown".format(mode))
 
     def _get_op3_input(self):
-        return self.signals.pop(0)
+        if self.signals:
+            return self.signals.pop(0)
+        # return input('Enter instruction:\n')
+        self.gen = self._compute()
+        raise NoSignal()
 
     def _on_step_start(self):
         pass
