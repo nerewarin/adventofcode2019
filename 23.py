@@ -58,8 +58,6 @@ class NAT:
 
 
 class CategorySix:
-    _jump_size = 4
-    _rexp = re.compile(r'(\w+)\s+(\w)\s(\w)')
     _nat_address = 255
 
     def __init__(self, *args, network_size=50, **kwargs):

@@ -34,7 +34,7 @@ class IntcodeComputer(Iterator):
 
         self.gen = self._compute()
 
-        self.pos = pos or 0
+        self._pos = pos or 0
         self.relative_base = relative_base or 0
         self.step = step or 0
 
@@ -100,6 +100,14 @@ class IntcodeComputer(Iterator):
 
     def compute(self):
         return list(self._compute())
+
+    @property
+    def pos(self):
+        return self._pos
+
+    @pos.setter
+    def pos(self, value):
+        self._pos = value
 
     def _compute(self):
         def _get_param(data, param, mode, base):
