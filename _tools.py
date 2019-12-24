@@ -1,5 +1,6 @@
 import os
 import re
+import math
 import traceback
 
 
@@ -12,8 +13,14 @@ def get_initiator_fname():
     raise ValueError()
 
 
-def get_puzzle_input():
+def get_puzzle_input(scalar_type=int, delimeter=',', multiline=False):
     fpath = os.path.join('inputs', '{}.txt'.format(get_initiator_fname()))
     print('reading {}'.format(fpath))
     with open(fpath, 'r') as f:
-        return [int(i) for i in f.readline().split(',')]
+        if not multiline:
+            return [scalar_type(i.strip()) for i in f.readline().split(delimeter)]
+        return [scalar_type(i.strip()) for i in f.readlines()]
+
+
+def lcm(a, b):
+    return a * b // math.gcd(a, b)
