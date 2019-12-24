@@ -17,9 +17,15 @@ class PlanetOfDiscord:
     def __init__(self, inp=None):
         _inp = inp or _tools.get_puzzle_input(scalar_type=str, multiline=True)
         self._layouts_history = set()
+
+        self.nulls_layout = tuple([tuple([0] * self._size) for x in range(self._size)])
+        self.minute = 0
+
         self._lvl2inp = {
-            0: tuple(tuple(1 if val == '#' else 0 for val in row) for row in _inp)
+            level: self.nulls_layout
+            for level in range(-self._size, self._size + 1)
         }
+        self._lvl2inp[0] = tuple(tuple(1 if val == '#' else 0 for val in row) for row in _inp)
 
     def _get_layout(self, level=0):
         return self._lvl2inp[level]
@@ -33,14 +39,164 @@ class PlanetOfDiscord:
             return 0
         return row[x]
 
-    def count_adjacent_bugs(self, layout, x, y):
+    def count_adjacent_bugs(self, layout, x, y, level=0):
         res = sum((
             self._get_value(layout, x + 1, y),
             self._get_value(layout, x - 1, y),
             self._get_value(layout, x, y + 1),
             self._get_value(layout, x, y - 1),
         ))
-        return res
+
+        if len(self._lvl2inp) == 1:
+            # part 1 - no levels
+            return res
+
+        adj_sum = 0
+        centre = self._size // 2
+
+        # adjacent by border
+        layout_level_away = self._lvl2inp.get(level - 1, self.nulls_layout)
+        if x in (0, self._size):
+            adjacent_x = centre + (1 if y else -1)
+            adjacent_y = centre
+            adj_sum += self._get_value(layout_level_away, adjacent_x, adjacent_y)
+            """
+                 |     |         |     |     
+                 |     |         |     |     
+                 |     |         |     |     
+            -----+-----+---------+-----+-----
+                 |     |         |     |     
+                 |     |         |     |     
+                 |     |         |     |     
+            -----+-----+---------+-----+-----
+                 |     |X| | | | |     |     
+                 |     |-+-+-+-+-|     |     
+                 |     |X| | | | |     |     
+                 |     |-+-+-+-+-|     |     
+                 |  +  |X| |?| | |     |     
+                 |     |-+-+-+-+-|     |     
+                 |     |X| | | | |     |     
+                 |     |-+-+-+-+-|     |     
+                 |     |X| | | | |     |     
+            -----+-----+---------+-----+-----
+                 |     |         |     |     
+                 |     |         |     |     
+                 |     |         |     |     
+            -----+-----+---------+-----+-----
+                 |     |         |     |     
+                 |     |         |     |     
+                 |     |         |     |     
+            """
+
+        if y in (0, self._size):
+            adjacent_x = centre
+            adjacent_y = centre + (1 if x else -1)
+            adj_sum += self._get_value(layout_level_away, adjacent_x, adjacent_y)
+            """
+                 |     |         |     |     
+                 |     |         |     |     
+                 |     |         |     |     
+            -----+-----+---------+-----+-----
+                 |     |         |     |     
+                 |     |    +    |     |     
+                 |     |         |     |     
+            -----+-----+---------+-----+-----
+                 |     |y|y|y|y|y|     |     
+                 |     |-+-+-+-+-|     |     
+                 |     | | | | | |     |     
+                 |     |-+-+-+-+-|     |     
+                 |     | | |?| | |     |     
+                 |     |-+-+-+-+-|     |     
+                 |     | | | | | |     |     
+                 |     |-+-+-+-+-|     |     
+                 |     | | | | | |     |     
+            -----+-----+---------+-----+-----
+                 |     |         |     |     
+                 |     |         |     |     
+                 |     |         |     |     
+            -----+-----+---------+-----+-----
+                 |     |         |     |     
+                 |     |         |     |     
+                 |     |         |     |     
+            """
+
+        if x == centre and y == centre:
+            print('centre')
+            pass
+
+        # adjacent by centre
+        layout_level_into = self._lvl2inp.get(level + 1, self.nulls_layout)
+        if x == centre and y in (centre - 1, centre + 1):
+            for adjacent_x in range(self._size):
+                max_y = (self._size - 1)
+                adjacent_y = max_y if y == centre + 1 else 0
+                value = self._get_value(layout_level_into, adjacent_x, adjacent_y)
+                adj_sum += value
+                """
+                     |     |         |     |     
+                     |     |    +    |     |     
+                     |     |         |     |     
+                -----+-----+---------+-----+-----
+                     |     |         |     |     
+                     |  +  |    X    |  +  |     
+                     |     |         |     |     
+                -----+-----+---------+-----+-----
+                     |     |+|+|+|+|+|     |     
+                     |     |-+-+-+-+-|     |     
+                     |     | | | | | |     |     
+                     |     |-+-+-+-+-|     |     
+                     |     | | | | | |     |     
+                     |     |-+-+-+-+-|     |     
+                     |     | | | | | |     |     
+                     |     |-+-+-+-+-|     |     
+                     |     |+|+|+|+|+|     |     
+                -----+-----+---------+-----+-----
+                     |     |         |     |     
+                     |  +  |    X    |  +  |     
+                     |     |         |     |     
+                -----+-----+---------+-----+-----
+                     |     |         |     |     
+                     |     |    +    |     |     
+                     |     |         |     |     
+                """
+
+        if y == centre and x in (centre - 1, centre + 1):
+            breakpoint = 0
+            for adjacent_y in range(self._size):
+                max_x = (self._size - 1)
+                adjacent_x = max_x if x == centre + 1 else 0
+                value = self._get_value(layout_level_into, adjacent_x, adjacent_y)
+                adj_sum += value
+                """
+                     |     |         |     |     
+                     |     |         |     |     
+                     |     |         |     |     
+                -----+-----+---------+-----+-----
+                     |     |         |     |     
+                     |     |         |     |     
+                     |     |         |     |     
+                -----+-----+---------+-----+-----
+                     |     |+| | | |+|     |     
+                     |     |-+-+-+-+-|     |     
+                     |     |+| | | |+|     |     
+                     |     |-+-+-+-+-|     |     
+                     |  y  |+| | | |+|  y  |     
+                     |     |-+-+-+-+-|     |     
+                     |     |+| | | |+|     |     
+                     |     |-+-+-+-+-|     |     
+                     |     |+| | | |+|     |     
+                -----+-----+---------+-----+-----
+                     |     |         |     |     
+                     |     |         |     |     
+                     |     |         |     |     
+                -----+-----+---------+-----+-----
+                     |     |         |     |     
+                     |     |         |     |     
+                     |     |         |     |     
+                """
+
+        # print('res', res, 'adj_sum', adj_sum)
+        return res + adj_sum
 
     def get_map(self, level=0):
         _map = collections.defaultdict(int)
@@ -93,21 +249,29 @@ class PlanetOfDiscord:
     def simulate_recursively(self, minutes):
         min_l, max_l = 0, 0
         for minute in range(minutes):
+            self.minute = minute
+            print(f'\n=== MINUTE {minute} ===\n')
             # consider we add two new layers every odd step (first, 3th, ...)
-            if not minute % 2:
-                min_l -= 1
-                max_l += 1
-                nulls_layout = tuple([tuple([0] * self._size) for x in range(self._size)])
-                self._lvl2inp[min_l] = nulls_layout
-                self._lvl2inp[max_l] = nulls_layout
+            # if not minute % 2:
+            #     min_l -= 1
+            #     max_l += 1
+            #     self._lvl2inp[min_l] = self.nulls_layout
+            #     self._lvl2inp[max_l] = self.nulls_layout
 
             new_lvl2layout = {}
             for level, layout in self._lvl2inp.items():
+
+                # DRAW
+                print('level', level)
+                for row in layout:
+                    print(row)
+                # END DRAW
+
                 new_list = []
                 for y in range(self._size):
                     new_row = []
                     for x in range(self._size):
-                        adjacent_bugs = self.count_adjacent_bugs(layout, x, y)
+                        adjacent_bugs = self.count_adjacent_bugs(layout, x, y, level)
                         current_val = layout[y][x]
 
                         if current_val:
@@ -145,22 +309,22 @@ def part2():
 
 
 def test(test_num):
-    inp = '''
+    _inp = '''
         ....#
         #..#.
         #..##
         ..#..
         #....
     '''
+    test_inp = [val.strip() for val in _inp.split('\n') if val.strip()]
     if test_num == 1:
-        _inp = [val.strip() for val in inp.split('\n') if val.strip()]
-        res = PlanetOfDiscord(inp=_inp).get_biodiversity_rating_of_repeating_layout()
+        res = PlanetOfDiscord(test_inp).get_biodiversity_rating_of_repeating_layout()
         assert res == 2129920, 'test{} failed!: {}'.format(test_num, res)
     elif test_num == 2:
         res = part1()
         assert res == 25719471, 'test{} failed!: {}'.format(test_num, res)
     elif test_num == 3:
-        solver = PlanetOfDiscord()
+        solver = PlanetOfDiscord(test_inp)
         solver.simulate_recursively(10)
         res = solver.count_all_bugs()
         assert res == 99, 'test{} failed!: {}'.format(test_num, res)
@@ -176,6 +340,6 @@ if __name__ == '__main__':
         # test(2),
         test(3),
         # part1(),
-        # part2(),
+        # part2(),  # is bad
     ):
         print(res)
