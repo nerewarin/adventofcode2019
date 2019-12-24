@@ -196,14 +196,6 @@ class PlanetOfDiscord:
         # print('res', res, 'adj_sum', adj_sum)
         return res + adj_sum
 
-    def get_map(self, level=0):
-        _map = collections.defaultdict(int)
-        for row_idx in range(self._size):
-            for col_idx in range(self._size):
-                layout = self._lvl2inp[level]
-                _map[(col_idx, row_idx)] = layout[row_idx][col_idx]
-        return _map
-
     def get_first_repeated_layout(self, level=0):
         layout = self._get_layout(level)
         while layout not in self._layouts_history:
@@ -244,11 +236,19 @@ class PlanetOfDiscord:
         layout = self.get_first_repeated_layout()
         return self.get_biodiversity_rating(layout)
 
+    def _draw(self):
+        print(f'\n=== MINUTE {self.minute} ===\n')
+        for level, layout in self._lvl2inp.items():
+            # DRAW
+            print('level', level)
+            for row in layout:
+                print(row)
+            # END DRAW
+
     def simulate_recursively(self, minutes):
         min_l, max_l = 0, 0
         for minute in range(minutes):
             self.minute = minute
-            print(f'\n=== MINUTE {minute} ===\n')
             # consider we add two new layers every odd step (first, 3th, ...)
             if not minute % 2:
                 min_l -= 1
@@ -256,15 +256,10 @@ class PlanetOfDiscord:
                 self._lvl2inp[min_l] = self.nulls_layout
                 self._lvl2inp[max_l] = self.nulls_layout
 
+            self._draw()
+
             new_lvl2layout = {}
             for level, layout in self._lvl2inp.items():
-
-                # DRAW
-                print('level', level)
-                for row in layout:
-                    print(row)
-                # END DRAW
-
                 new_list = []
                 for y in range(self._size):
                     new_row = []
@@ -285,13 +280,8 @@ class PlanetOfDiscord:
 
             self._lvl2inp = new_lvl2layout
 
-        print(f'\n=== MINUTE {minute + 1} ===\n')
-        for level, layout in self._lvl2inp.items():
-            # DRAW
-            print('level', level)
-            for row in layout:
-                print(row)
-            # END DRAW
+        self.minute += 1
+        self._draw()
 
         return None
 
