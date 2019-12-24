@@ -1,3 +1,4 @@
+
 """
 --- Day 24: Planet of Discord ---
 
@@ -17,15 +18,11 @@ class PlanetOfDiscord:
     def __init__(self, inp=None):
         _inp = inp or _tools.get_puzzle_input(scalar_type=str, multiline=True)
         self._layouts_history = set()
-
+        self._lvl2inp = {
+            0: tuple(tuple(1 if val == '#' else 0 for val in row) for row in _inp)
+        }
         self.nulls_layout = tuple([tuple([0] * self._size) for x in range(self._size)])
         self.minute = 0
-
-        self._lvl2inp = {
-            level: self.nulls_layout
-            for level in range(-self._size, self._size + 1)
-        }
-        self._lvl2inp[0] = tuple(tuple(1 if val == '#' else 0 for val in row) for row in _inp)
 
     def _get_layout(self, level=0):
         return self._lvl2inp[level]
@@ -53,71 +50,73 @@ class PlanetOfDiscord:
 
         adj_sum = 0
         centre = self._size // 2
+        max_idx = self._size - 1
 
         # adjacent by border
         layout_level_away = self._lvl2inp.get(level - 1, self.nulls_layout)
-        if x in (0, self._size):
-            adjacent_x = centre + (1 if y else -1)
+        if x in (0, max_idx):
+            adjacent_x = centre + (1 if x else -1)
             adjacent_y = centre
             adj_sum += self._get_value(layout_level_away, adjacent_x, adjacent_y)
             """
-                 |     |         |     |     
-                 |     |         |     |     
-                 |     |         |     |     
+                 |     |         |     |
+                 |     |         |     |
+                 |     |         |     |
             -----+-----+---------+-----+-----
-                 |     |         |     |     
-                 |     |         |     |     
-                 |     |         |     |     
+                 |     |         |     |
+                 |     |         |     |
+                 |     |         |     |
             -----+-----+---------+-----+-----
-                 |     |X| | | | |     |     
-                 |     |-+-+-+-+-|     |     
-                 |     |X| | | | |     |     
-                 |     |-+-+-+-+-|     |     
-                 |  +  |X| |?| | |     |     
-                 |     |-+-+-+-+-|     |     
-                 |     |X| | | | |     |     
-                 |     |-+-+-+-+-|     |     
-                 |     |X| | | | |     |     
+                 |     |X| | | | |     |
+                 |     |-+-+-+-+-|     |
+                 |     |X| | | | |     |
+                 |     |-+-+-+-+-|     |
+                 |  +  |X| |?| | |     |
+                 |     |-+-+-+-+-|     |
+                 |     |X| | | | |     |
+                 |     |-+-+-+-+-|     |
+                 |     |X| | | | |     |
             -----+-----+---------+-----+-----
-                 |     |         |     |     
-                 |     |         |     |     
-                 |     |         |     |     
+                 |     |         |     |
+                 |     |         |     |
+                 |     |         |     |
             -----+-----+---------+-----+-----
-                 |     |         |     |     
-                 |     |         |     |     
-                 |     |         |     |     
+                 |     |         |     |
+                 |     |         |     |
+                 |     |         |     |
             """
 
-        if y in (0, self._size):
+        if y in (0, max_idx):
+            breakpoint = 0
             adjacent_x = centre
-            adjacent_y = centre + (1 if x else -1)
+            adjacent_y = centre + (1 if y else -1)
             adj_sum += self._get_value(layout_level_away, adjacent_x, adjacent_y)
             """
-                 |     |         |     |     
-                 |     |         |     |     
-                 |     |         |     |     
+                 |     |         |     |
+                 |     |         |     |
+                 |     |         |     |
             -----+-----+---------+-----+-----
-                 |     |         |     |     
-                 |     |    +    |     |     
-                 |     |         |     |     
+                 |     |         |     |
+                 |     |    +    |     |
+                 |     |         |     |
             -----+-----+---------+-----+-----
-                 |     |y|y|y|y|y|     |     
-                 |     |-+-+-+-+-|     |     
-                 |     | | | | | |     |     
-                 |     |-+-+-+-+-|     |     
-                 |     | | |?| | |     |     
-                 |     |-+-+-+-+-|     |     
-                 |     | | | | | |     |     
-                 |     |-+-+-+-+-|     |     
-                 |     | | | | | |     |     
+                 |     |y|y|y|y|y|     |
+                 |     |-+-+-+-+-|     |
+                 |     | | | | | |     |
+                 |     |-+-+-+-+-|     |
+                 |     | | |?| | |     |
+                 |     |-+-+-+-+-|     |
+                 |     | | | | | |     |
+                 |     |-+-+-+-+-|     |
+                 |     | | | | | |     |
             -----+-----+---------+-----+-----
-                 |     |         |     |     
-                 |     |         |     |     
-                 |     |         |     |     
+                 |     |         |     |
+                 |     |         |     |
+                 |     |         |     |
             -----+-----+---------+-----+-----
-                 |     |         |     |     
-                 |     |         |     |     
-                 |     |         |     |     
+                 |     |         |     |
+                 |     |         |     |
+                 |     |         |     |
             """
 
         if x == centre and y == centre:
@@ -128,36 +127,35 @@ class PlanetOfDiscord:
         layout_level_into = self._lvl2inp.get(level + 1, self.nulls_layout)
         if x == centre and y in (centre - 1, centre + 1):
             for adjacent_x in range(self._size):
-                max_y = (self._size - 1)
-                adjacent_y = max_y if y == centre + 1 else 0
+                adjacent_y = max_idx if y == centre + 1 else 0
                 value = self._get_value(layout_level_into, adjacent_x, adjacent_y)
                 adj_sum += value
                 """
-                     |     |         |     |     
-                     |     |    +    |     |     
-                     |     |         |     |     
+                     |     |         |     |
+                     |     |    +    |     |
+                     |     |         |     |
                 -----+-----+---------+-----+-----
-                     |     |         |     |     
-                     |  +  |    X    |  +  |     
-                     |     |         |     |     
+                     |     |         |     |
+                     |  +  |    X    |  +  |
+                     |     |         |     |
                 -----+-----+---------+-----+-----
-                     |     |+|+|+|+|+|     |     
-                     |     |-+-+-+-+-|     |     
-                     |     | | | | | |     |     
-                     |     |-+-+-+-+-|     |     
-                     |     | | | | | |     |     
-                     |     |-+-+-+-+-|     |     
-                     |     | | | | | |     |     
-                     |     |-+-+-+-+-|     |     
-                     |     |+|+|+|+|+|     |     
+                     |     |+|+|+|+|+|     |
+                     |     |-+-+-+-+-|     |
+                     |     | | | | | |     |
+                     |     |-+-+-+-+-|     |
+                     |     | | | | | |     |
+                     |     |-+-+-+-+-|     |
+                     |     | | | | | |     |
+                     |     |-+-+-+-+-|     |
+                     |     |+|+|+|+|+|     |
                 -----+-----+---------+-----+-----
-                     |     |         |     |     
-                     |  +  |    X    |  +  |     
-                     |     |         |     |     
+                     |     |         |     |
+                     |  +  |    X    |  +  |
+                     |     |         |     |
                 -----+-----+---------+-----+-----
-                     |     |         |     |     
-                     |     |    +    |     |     
-                     |     |         |     |     
+                     |     |         |     |
+                     |     |    +    |     |
+                     |     |         |     |
                 """
 
         if y == centre and x in (centre - 1, centre + 1):
@@ -168,31 +166,31 @@ class PlanetOfDiscord:
                 value = self._get_value(layout_level_into, adjacent_x, adjacent_y)
                 adj_sum += value
                 """
-                     |     |         |     |     
-                     |     |         |     |     
-                     |     |         |     |     
+                     |     |         |     |
+                     |     |         |     |
+                     |     |         |     |
                 -----+-----+---------+-----+-----
-                     |     |         |     |     
-                     |     |         |     |     
-                     |     |         |     |     
+                     |     |         |     |
+                     |     |         |     |
+                     |     |         |     |
                 -----+-----+---------+-----+-----
-                     |     |+| | | |+|     |     
-                     |     |-+-+-+-+-|     |     
-                     |     |+| | | |+|     |     
-                     |     |-+-+-+-+-|     |     
-                     |  y  |+| | | |+|  y  |     
-                     |     |-+-+-+-+-|     |     
-                     |     |+| | | |+|     |     
-                     |     |-+-+-+-+-|     |     
-                     |     |+| | | |+|     |     
+                     |     |+| | | |+|     |
+                     |     |-+-+-+-+-|     |
+                     |     |+| | | |+|     |
+                     |     |-+-+-+-+-|     |
+                     |  y  |+| | | |+|  y  |
+                     |     |-+-+-+-+-|     |
+                     |     |+| | | |+|     |
+                     |     |-+-+-+-+-|     |
+                     |     |+| | | |+|     |
                 -----+-----+---------+-----+-----
-                     |     |         |     |     
-                     |     |         |     |     
-                     |     |         |     |     
+                     |     |         |     |
+                     |     |         |     |
+                     |     |         |     |
                 -----+-----+---------+-----+-----
-                     |     |         |     |     
-                     |     |         |     |     
-                     |     |         |     |     
+                     |     |         |     |
+                     |     |         |     |
+                     |     |         |     |
                 """
 
         # print('res', res, 'adj_sum', adj_sum)
@@ -252,11 +250,11 @@ class PlanetOfDiscord:
             self.minute = minute
             print(f'\n=== MINUTE {minute} ===\n')
             # consider we add two new layers every odd step (first, 3th, ...)
-            # if not minute % 2:
-            #     min_l -= 1
-            #     max_l += 1
-            #     self._lvl2inp[min_l] = self.nulls_layout
-            #     self._lvl2inp[max_l] = self.nulls_layout
+            if not minute % 2:
+                min_l -= 1
+                max_l += 1
+                self._lvl2inp[min_l] = self.nulls_layout
+                self._lvl2inp[max_l] = self.nulls_layout
 
             new_lvl2layout = {}
             for level, layout in self._lvl2inp.items():
@@ -286,6 +284,14 @@ class PlanetOfDiscord:
                 new_lvl2layout[level] = tuple(new_list)
 
             self._lvl2inp = new_lvl2layout
+
+        print(f'\n=== MINUTE {minute + 1} ===\n')
+        for level, layout in self._lvl2inp.items():
+            # DRAW
+            print('level', level)
+            for row in layout:
+                print(row)
+            # END DRAW
 
         return None
 
@@ -338,8 +344,8 @@ if __name__ == '__main__':
     for res in (
         # test(1),
         # test(2),
-        test(3),
+        test(3),  # 108, 91
         # part1(),
-        # part2(),  # is bad
+        # part2(),  # 101 is low, 1748 and 2042 are wrong
     ):
         print(res)
