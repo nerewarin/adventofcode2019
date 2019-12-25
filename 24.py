@@ -52,6 +52,9 @@ class PlanetOfDiscord:
         centre = self._size // 2
         max_idx = self._size - 1
 
+        if x == centre and y == centre:
+            return 0
+
         # adjacent by border
         layout_level_away = self._lvl2inp.get(level - 1, self.nulls_layout)
         if x in (0, max_idx):
@@ -119,9 +122,6 @@ class PlanetOfDiscord:
                  |     |         |     |
             """
 
-        if x == centre and y == centre:
-            print('centre')
-            pass
 
         # adjacent by centre
         layout_level_into = self._lvl2inp.get(level + 1, self.nulls_layout)
@@ -334,8 +334,8 @@ if __name__ == '__main__':
     for res in (
         # test(1),
         # test(2),
-        test(3),  # 108, 91
+        # test(3),  # 108, 91
         # part1(),
-        # part2(),  # 101 is low, 1748 and 2042 are wrong
+        part2(),  # 101 is low, 1748 and 2042 are wrong
     ):
         print(res)
