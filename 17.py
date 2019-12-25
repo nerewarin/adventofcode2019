@@ -14,7 +14,7 @@ class SetAndForget(IntcodeComputer):
         if _map:
             self._map = '\n'.join(_map)
         else:
-            self._map = [chr(r) for r in self.compute()]
+            self._map = ''.join(chr(ascii_code) for ascii_code in self.compute())
 
     def _draw(self):
         for symbol in self._map:
@@ -23,9 +23,34 @@ class SetAndForget(IntcodeComputer):
             print(symbol, end='')
         print(f'\nvacuum_robot_xy: {vacuum_robot_xy}')
 
+    @staticmethod
+    def _get_value(layout, x, y):
+        if y < 0 or y >= len(layout):
+            return 0
+        row = layout[y]
+        if x < 0 or x >= len(row):
+            return 0
+        return row[x] == '#'
+
+    def all_adjacent_are_scaffold(self, layout, x, y):
+        return all((
+            self._get_value(layout, x + 1, y),
+            self._get_value(layout, x - 1, y),
+            self._get_value(layout, x, y + 1),
+            self._get_value(layout, x, y - 1),
+        ))
+
     def get_sum_of_the_alignment_parameters(self):
         self._draw()
-
+        layout = self._map.split('\n')
+        alignments = []
+        res = 0
+        for y, row in enumerate(layout):
+            for x, symbol in enumerate(row):
+                if symbol == '#' and self.all_adjacent_are_scaffold(layout, x, y):
+                    alignments.append((x, y))
+                    res += x * y
+        return res
 
 def part1(*args, **kwargs):
     return SetAndForget(*args, **kwargs).get_sum_of_the_alignment_parameters()
