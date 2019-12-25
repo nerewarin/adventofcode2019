@@ -5,23 +5,39 @@ https://adventofcode.com/2019/day/17
 
 """
 
-from _intcode_computer import IntcodeComputer
+from _intcode_computer import IntcodeComputer, NoSignal
 
 
 class SetAndForget(IntcodeComputer):
-    def __init__(self, _map=None):
+    def __init__(self, _map=None, memory_changes=None):
+        self._memory_changes = memory_changes or {}
+
         super().__init__()
+
         if _map:
             self._map = '\n'.join(_map)
         else:
-            self._map = ''.join(chr(ascii_code) for ascii_code in self.compute())
+            chars = []
+            while True:
+                try:
+                    ascii_code = chr(next(self))
+                    chars.append(ascii_code)
+                except NoSignal:
+                    break
+            self._map = ''.join(chars)
+
+    def _init_memory(self, memory):
+        _memory = super()._init_memory(memory)
+        for k, v in self._memory_changes.items():
+            _memory[k] = v
+        return _memory
 
     def _draw(self):
         for symbol in self._map:
             if symbol in '^v<>X':
                 vacuum_robot_xy = symbol
             print(symbol, end='')
-        print(f'\nvacuum_robot_xy: {vacuum_robot_xy}')
+        # print(f'\nvacuum_robot_xy: {vacuum_robot_xy}')
 
     @staticmethod
     def _get_value(layout, x, y):
@@ -56,6 +72,10 @@ def part1(*args, **kwargs):
     return SetAndForget(*args, **kwargs).get_sum_of_the_alignment_parameters()
 
 
+def part2(*args, **kwargs):
+    return SetAndForget(*args, **kwargs).get_sum_of_the_alignment_parameters()
+
+
 def test(test_num):
     _inp = '''
         ..#..........
@@ -78,7 +98,8 @@ def test(test_num):
 
 if __name__ == '__main__':
     for res in (
-        test(1),
-        part1(),
+        # test(1),
+        # part1(),
+        part2(memory_changes={0: 2}),
     ):
         print(res)
