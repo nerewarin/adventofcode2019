@@ -5,28 +5,154 @@ https://adventofcode.com/2019/day/25
 
 """
 
+import re
 import collections
 import itertools
+import warnings
 
 import _tools
+from _intcode_computer import ASCIICapableComputer
 
 
-class Cryostasis:
-    def __init__(self, inp=None):
-        _inp = inp or _tools.get_puzzle_input(scalar_type=str, multiline=True)
+_regexp = re.compile(r'- ([\w ]+)')
 
-    def _draw(self):
-        print(f'\n=== MINUTE {self.minute} ===\n')
-        for level, layout in self._lvl2inp.items():
-            # DRAW
-            print('level', level)
-            for row in layout:
-                print(row)
-            # END DRAW
+
+class Cryostasis(ASCIICapableComputer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.last_msg = None
+        # self._doors = []
+        # self._visited_doors = []
+        self._map = []
+
+    def _get_msg(self, *args, **kwargs):
+        self.last_msg = super(Cryostasis, self)._get_msg(*args, **kwargs)
+        return self.last_msg
+
+    def _extract_info(self, s, msg=None):
+        if msg is None:
+            msg = self.last_msg
+
+        if s not in msg:
+            return []
+
+        info = []
+        for line in msg[msg.rfind(s) + len(s):].split('\n')[1:]:
+            _res = _regexp.match(line)
+            if not _res:
+                break
+
+            res = _res.group(1)
+            if res in (
+                'giant electromagnet',
+                'escape pod',
+                'infinite loop',
+                'molten lava',
+            ):
+                warnings.warn(f'found {res!r} in {self.curr_place!r} but skip it!')
+                continue
+
+            info.append(res)
+        #
+        # info = [
+        #     m for m in msg[msg.rfind(s) + len(s):msg.rfind('Command')].split('\n')
+        #     if m
+        # ]
+        #
+        # items = []
+        # for _item in info:
+        #
+        #
+        #     items.append(_res.group(1))
+        return info
+
+    def run(self):
+        step = 1
+        directions = {
+            'north': 'south',
+            'south': 'north',
+            'east': 'west',
+            'west': 'east',
+        }
+        last_move = None
+        place2moves = collections.defaultdict(set)
+        msg = self._get_msg(to_print=True)
+        while True:
+            try:
+                place = msg.split('==')[1].strip()
+            except IndexError as e:
+                _msg = self._get_msg(to_print=True)
+                raise e
+            self.curr_place = place
+            _d = msg[msg.rfind(place) + len(place) + 4:]
+            description = _d[:_d.find('\n')]
+            if 'Command?' not in msg:
+                raise NotImplementedError(msg)
+
+            items = self._extract_info('Items here:', msg)
+            if any(item in directions for item in items):
+                raise ValueError(f'wrong item parsed: {items}')
+            if items:
+                for item in items:
+                    self.feed(f'take {item}')
+                take_msg = self._get_msg(to_print=True)
+
+            self.feed('inv')
+            inv_msg = self._get_msg(to_print=True)
+            inv = self._extract_info('Items in your inventory:', inv_msg)
+
+            doors = self._extract_info('Doors here lead:', msg[msg.index(place):])
+            if any(door not in directions for door in doors):
+                raise ValueError(f'wrong door parsed: {doors}')
+
+            for door in sorted(doors, key=lambda door: directions[door] == last_move):
+                if directions[door] == last_move:
+                    break
+                if door not in place2moves[place]:
+                    place2moves[place].add(door)
+                    break
+            else:
+                if place not in ('Hull Breach', 'Stables', 'Navigation'):
+                    raise RuntimeError('no unique way')
+
+            self.feed(door)
+            last_move = door
+
+            # if place in [place_info['place'] for place_info in self._map]:
+            #     raise RuntimeError(f'returned to {place}')
+
+            self._map.append({
+                'place': place,
+                'doors': doors,
+                'move': door,
+                'take': items,
+                'inv': inv,
+                'description': description,
+            })
+
+            print(f'step {step}')
+            for place_info in self._map:
+                import pprint
+                pprint.pprint(place_info)
+
+            step += 1
+
+            msg = self._get_msg(to_print=True)
+            if not msg:
+                raise ValueError()
+
+    def feed(self, value, to_print=None):
+        if self._to_print_feed:
+            print('>>>', end='')
+
+        for x in str(value):
+            super().feed(ord(x), to_print)
+
+        super().feed(self._new_line)
 
 
 def part1(*args, **kwargs):
-    return Cryostasis(*args, **kwargs).get_biodiversity_rating_of_repeating_layout()
+    return Cryostasis(*args, **kwargs).run()
 
 
 def test(test_num):
@@ -49,7 +175,7 @@ def test(test_num):
 
 if __name__ == '__main__':
     for res in (
-        test(1),
+        # test(1),
         part1(),
     ):
         print(res)

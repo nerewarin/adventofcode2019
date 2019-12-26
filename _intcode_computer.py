@@ -38,6 +38,8 @@ class IntcodeComputer(Iterator):
         self.relative_base = relative_base or 0
         self.step = step or 0
 
+        self._to_print_feed = False
+
     def _init_memory(self, memory):
         if isinstance(memory, Memory):
             return memory
@@ -57,9 +59,17 @@ class IntcodeComputer(Iterator):
     def __next__(self):
         return next(self.gen)
 
-    def feed(self, value):
+    def feed(self, value, to_print=None):
         # feed the generator
-        print(f'{chr(value)}', end='')
+        _to_print = None
+        if to_print is not None:
+            _to_print = to_print
+        if _to_print is None:
+            _to_print = self._to_print_feed
+
+        if _to_print:
+            print(f'{chr(value)}', end='')
+
         self.signals.append(value)
 
     def get_value(self, val_or_idx, mode):
@@ -244,17 +254,11 @@ class IntcodeComputer(Iterator):
 
 
 class ASCIICapableComputer(IntcodeComputer):
-    def __init__(self, _map=None, memory_changes=None):
-        self._memory_changes = memory_changes or {}
-
+    def __init__(self, *args, to_print_feed=True, **kwargs):
         super().__init__()
+        self._to_print_feed = to_print_feed
 
-        if _map:
-            self._map = '\n'.join(_map)
-        else:
-            self._map = self._get_msg()
-
-    def _get_msg(self):
+    def _get_msg(self, to_print=False):
         chars = []
         while True:
             try:
@@ -264,20 +268,10 @@ class ASCIICapableComputer(IntcodeComputer):
                 break
             except StopIteration:
                 break
-        return ''.join(chars)
-
-    def _init_memory(self, memory):
-        _memory = super()._init_memory(memory)
-        for k, v in self._memory_changes.items():
-            _memory[k] = v
-        return _memory
-
-    def _draw(self):
-        for symbol in self._map:
-            if symbol in '^v<>X':
-                vacuum_robot_xy = symbol
-            print(symbol, end='')
-        # print(f'\nvacuum_robot_xy: {vacuum_robot_xy}')
+        res = ''.join(chars)
+        if to_print:
+            print(res)
+        return res
 
     @staticmethod
     def _get_value(layout, x, y):
@@ -295,53 +289,6 @@ class ASCIICapableComputer(IntcodeComputer):
             self._get_value(layout, x, y + 1),
             self._get_value(layout, x, y - 1),
         ))
-
-    def get_sum_of_the_alignment_parameters(self):
-        self._draw()
-
-        layout = self._map.split('\n')
-        alignments = []
-        res = 0
-        for y, row in enumerate(layout):
-            for x, symbol in enumerate(row):
-                if symbol == '#' and self.all_adjacent_are_scaffold(layout, x, y):
-                    alignments.append((x, y))
-                    res += x * y
-        return res
-
-    def collect_dust(self):
-        self._draw()
-
-        commands = self._get_commands()
-
-        self._input_commands(commands)
-
-        # video_enabled = 'y'
-        video_disabled = 'n'
-        self.feed(ord(video_disabled))
-        self.feed(self._new_line)
-
-        msg = self._get_msg()
-        # print()
-        # print(msg)
-        return ord(msg[-1])
-
-    def _get_commands(self):
-        robot_pos = self._map.index('^')
-        L = 'L'
-        R = 'R'
-        a = 12
-        b = 10
-        c = 8
-        A = L, a, L, b, R, c, L, a,
-        B = R, c, R, b, R, a
-        C = L, b, R, a, R, c,
-        return {
-            'A': A,
-            'B': B,
-            'C': C,
-            'path': 'ABABCCBABC',
-        }
 
     @property
     def _new_line(self):
