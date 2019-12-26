@@ -75,22 +75,6 @@ class SetAndForget(IntcodeComputer):
     def collect_dust(self):
         self._draw()
 
-        # layout = self._map.split('\n')
-        #
-        # # if symbol in '^v<>X':
-        #
-        # # self._map.split('\n')
-        #
-        # for y, row in enumerate(layout):
-        #     for x, symbol in enumerate(row):
-        #         if symbol != '#':
-        #             continue
-        #
-        #         print(x, y)
-        #         if self.all_adjacent_are_scaffold(layout, x, y):
-        #             print('centre')
-        # # self._draw()
-
         commands = self._get_commands()
 
         self._input_commands(commands)
@@ -100,70 +84,19 @@ class SetAndForget(IntcodeComputer):
 
     def _get_commands(self):
         robot_pos = self._map.index('^')
-        left = 'L'
-        right = 'R'
-        import collections
-        import networkx as nx
-        g = nx.DiGraph()
-        stat = collections.Counter(
-            (
-                (left, 12),
-                (left, 10),
-                (right, 8),
-
-                (left, 12),
-                (right, 8),
-                (right, 10),
-                (right, 12),
-
-                (left, 12),
-                (left, 10),
-                (right, 8),
-
-                (left, 8),
-                (right, 8),
-                (right, 10),
-                (right, 12),
-
-                #   ###
-                #     #
-                #   ###
-                #   #
-                (left, 10),
-                (right, 12),
-                (right, 8),
-                (left, 10),
-
-                (right, 12),
-                (right, 8),
-                (right, 8),
-                (right, 10),
-
-                (right, 12),
-                (left, 12),
-                (left, 10),
-                (right, 8),
-
-                (left, 12),
-                (right, 12),
-                (right, 10),
-                (right, 12),
-
-                (left, 12),
-                (right, 12),
-                (right, 8),
-            )
-        )
-        L = left
-        R = right
+        L = 'L'
+        R = 'R'
         a = 12
         b = 10
         c = 8
-        commands = (L,a,L,b,R,c,L,a,R,c,R,b,R,a,L,a,L,b,R,c,L,c,R,c,R,b,R,a,L,b,R,a,R,c,L,b,R,a,R,c,R,c,R,b,R,a,L,a,L,b,R,c,L,a,R,a,R,b,R,a,L,a,R,a,R,c)
-        A = (L,a,L,b,R,c,L)
+        A = (L,a,L,b,R,c,L,a,R,c,R,b,R,a)
+        B = L, b, R, a, R, c
+        C = R, c, R, b, R,a
         return {
             'A': A,
-            'path': 'A',
+            'B': B,
+            'C': C,
+            'path': 'AABBCAB',
         }
 
     @property
@@ -179,26 +112,27 @@ class SetAndForget(IntcodeComputer):
         for i, x in enumerate(command_path[1:]):
             self.feed(ord(x))
             self.feed(self._comma)
-        self.feed(ord(command_path[0]))
-        self.feed(self._new_line)
-
-        # print(command_path)
-        print(self._get_msg())
-
-        command_a = commands['A']
-        for x in command_a[1:]:
-            try:
-                val = ord(str(x))
-            except TypeError as e:
-                val = x
-            self.feed(val)
-            self.feed(self._comma)
-        self.feed(ord(command_a[0]))
+        self.feed(ord(command_path[-1]))
         self.feed(self._new_line)
 
         print(self._get_msg())
 
-        command_a = 9
+        for command_description in ('A', 'B', 'C'):
+            command = commands[command_description]
+            for x in command[1:]:
+                for val in str(x):
+                    self.feed(ord(val))
+                self.feed(self._comma)
+
+            for val in str(command[-1]):
+                self.feed(ord(val))
+            self.feed(self._new_line)
+
+            msg = self.compute()
+            print(msg)
+            # print(self._get_msg())
+
+        command = 9
 
 
 def part1(*args, **kwargs):
