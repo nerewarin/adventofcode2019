@@ -17,14 +17,17 @@ class SetAndForget(IntcodeComputer):
         if _map:
             self._map = '\n'.join(_map)
         else:
-            chars = []
-            while True:
-                try:
-                    ascii_code = chr(next(self))
-                    chars.append(ascii_code)
-                except NoSignal:
-                    break
-            self._map = ''.join(chars)
+            self._map = self._get_msg()
+
+    def _get_msg(self):
+        chars = []
+        while True:
+            try:
+                ascii_code = chr(next(self))
+                chars.append(ascii_code)
+            except NoSignal:
+                break
+        return ''.join(chars)
 
     def _init_memory(self, memory):
         _memory = super()._init_memory(memory)
@@ -58,6 +61,7 @@ class SetAndForget(IntcodeComputer):
 
     def get_sum_of_the_alignment_parameters(self):
         self._draw()
+
         layout = self._map.split('\n')
         alignments = []
         res = 0
@@ -68,12 +72,141 @@ class SetAndForget(IntcodeComputer):
                     res += x * y
         return res
 
+    def collect_dust(self):
+        self._draw()
+
+        # layout = self._map.split('\n')
+        #
+        # # if symbol in '^v<>X':
+        #
+        # # self._map.split('\n')
+        #
+        # for y, row in enumerate(layout):
+        #     for x, symbol in enumerate(row):
+        #         if symbol != '#':
+        #             continue
+        #
+        #         print(x, y)
+        #         if self.all_adjacent_are_scaffold(layout, x, y):
+        #             print('centre')
+        # # self._draw()
+
+        commands = self._get_commands()
+
+        self._input_commands(commands)
+
+        res = self.compute()
+        return res
+
+    def _get_commands(self):
+        robot_pos = self._map.index('^')
+        left = 'L'
+        right = 'R'
+        import collections
+        import networkx as nx
+        g = nx.DiGraph()
+        stat = collections.Counter(
+            (
+                (left, 12),
+                (left, 10),
+                (right, 8),
+
+                (left, 12),
+                (right, 8),
+                (right, 10),
+                (right, 12),
+
+                (left, 12),
+                (left, 10),
+                (right, 8),
+
+                (left, 8),
+                (right, 8),
+                (right, 10),
+                (right, 12),
+
+                #   ###
+                #     #
+                #   ###
+                #   #
+                (left, 10),
+                (right, 12),
+                (right, 8),
+                (left, 10),
+
+                (right, 12),
+                (right, 8),
+                (right, 8),
+                (right, 10),
+
+                (right, 12),
+                (left, 12),
+                (left, 10),
+                (right, 8),
+
+                (left, 12),
+                (right, 12),
+                (right, 10),
+                (right, 12),
+
+                (left, 12),
+                (right, 12),
+                (right, 8),
+            )
+        )
+        L = left
+        R = right
+        a = 12
+        b = 10
+        c = 8
+        commands = (L,a,L,b,R,c,L,a,R,c,R,b,R,a,L,a,L,b,R,c,L,c,R,c,R,b,R,a,L,b,R,a,R,c,L,b,R,a,R,c,R,c,R,b,R,a,L,a,L,b,R,c,L,a,R,a,R,b,R,a,L,a,R,a,R,c)
+        A = (L,a,L,b,R,c,L)
+        return {
+            'A': A,
+            'path': 'A',
+        }
+
+    @property
+    def _new_line(self):
+        return 10  # ord('\n')
+
+    @property
+    def _comma(self):
+        return 44  # ord('\,')
+
+    def _input_commands(self, commands):
+        command_path = commands['path']
+        for i, x in enumerate(command_path[1:]):
+            self.feed(ord(x))
+            self.feed(self._comma)
+        self.feed(ord(command_path[0]))
+        self.feed(self._new_line)
+
+        # print(command_path)
+        print(self._get_msg())
+
+        command_a = commands['A']
+        for x in command_a[1:]:
+            try:
+                val = ord(str(x))
+            except TypeError as e:
+                val = x
+            self.feed(val)
+            self.feed(self._comma)
+        self.feed(ord(command_a[0]))
+        self.feed(self._new_line)
+
+        print(self._get_msg())
+
+        command_a = 9
+
+
 def part1(*args, **kwargs):
     return SetAndForget(*args, **kwargs).get_sum_of_the_alignment_parameters()
 
 
 def part2(*args, **kwargs):
-    return SetAndForget(*args, **kwargs).get_sum_of_the_alignment_parameters()
+    return SetAndForget(*args, **kwargs).collect_dust()
 
 
 def test(test_num):
