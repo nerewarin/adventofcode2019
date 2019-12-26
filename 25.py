@@ -18,6 +18,13 @@ _regexp = re.compile(r'- ([\w ]+)')
 
 
 class Cryostasis(ASCIICapableComputer):
+    directions = {
+        'north': 'south',
+        'south': 'north',
+        'east': 'west',
+        'west': 'east',
+    }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.last_msg = None
@@ -67,41 +74,7 @@ class Cryostasis(ASCIICapableComputer):
         return info
 
     def run(self):
-        step = 1
-        directions = {
-            'north': 'south',
-            'south': 'north',
-            'east': 'west',
-            'west': 'east',
-        }
-        last_move = None
-        place2moves = collections.defaultdict(set)
-        msg = self._get_msg(to_print=True)
-        while True:
-            try:
-                place = msg.split('==')[1].strip()
-            except IndexError as e:
-                _msg = self._get_msg(to_print=True)
-                raise e
-            self.curr_place = place
-            _d = msg[msg.rfind(place) + len(place) + 4:]
-            description = _d[:_d.find('\n')]
-            if 'Command?' not in msg:
-                raise NotImplementedError(msg)
-
-            items = self._extract_info('Items here:', msg)
-            if any(item in directions for item in items):
-                raise ValueError(f'wrong item parsed: {items}')
-            if items:
-                for item in items:
-                    self.feed(f'take {item}')
-                take_msg = self._get_msg(to_print=True)
-
-            self.feed('inv')
-            inv_msg = self._get_msg(to_print=True)
-            inv = self._extract_info('Items in your inventory:', inv_msg)
-
-            doors = self._extract_info('Doors here lead:', msg[msg.index(place):])
+        def _get_door():
             if any(door not in directions for door in doors):
                 raise ValueError(f'wrong door parsed: {doors}')
 
@@ -115,11 +88,48 @@ class Cryostasis(ASCIICapableComputer):
                 if place not in ('Hull Breach', 'Stables', 'Navigation'):
                     raise RuntimeError('no unique way')
 
+            return door
+
+        def get_state(msg):
+            place = msg.split('==')[1].strip()
+            self.curr_place = place
+            _d = msg[msg.rfind(place) + len(place) + 4:]
+            description = _d[:_d.find('\n')]
+            if 'Command?' not in msg:
+                raise NotImplementedError(msg)
+
+            items = self._extract_info('Items here:', msg)
+            if any(item in directions for item in items):
+                raise ValueError(f'wrong item parsed: {items}')
+            if items:
+                for item in items:
+                    self.feed(f'take {item}')
+                # take_msg = self._get_msg(to_print=True)
+
+            self.feed('inv')
+            inv_msg = self._get_msg(to_print=True)
+            inv = self._extract_info('Items in your inventory:', inv_msg)
+
+            doors = self._extract_info('Doors here lead:', msg[msg.index(place):])
+            return place, description, items, inv, doors
+
+        directions = self.directions
+        step = 1
+        last_move = None
+        place = None
+        place2moves = collections.defaultdict(set)
+        msg = self._get_msg(to_print=True)
+        inv = []
+        while len(inv) < 8 or place != 'Navigation':
+            place, description, items, inv, doors = get_state(msg)
+
+            if place == 'Science Lab':
+                door = 'north'
+            else:
+                door = _get_door()
+
             self.feed(door)
             last_move = door
-
-            # if place in [place_info['place'] for place_info in self._map]:
-            #     raise RuntimeError(f'returned to {place}')
 
             self._map.append({
                 'place': place,
@@ -130,6 +140,28 @@ class Cryostasis(ASCIICapableComputer):
                 'description': description,
             })
 
+            step += 1
+
+            msg = self._get_msg(to_print=True)
+            if not msg:
+                raise ValueError()
+
+        default_msg = self._get_msg(to_print=True)
+        prev_nav_doors = None
+        nav_doors = None
+        while msg == default_msg or nav_doors == prev_nav_doors:
+            for i, item in enumerate(inv):
+                self.feed(f'drop {item}', to_print=True)
+                inv.pop(i)
+                break
+                # msg = self._get_msg(to_print=True)
+                # if msg == default_msg:
+                #     continue
+
+            self._get_msg(to_print=True)
+
+            place, description, items, inv, nav_doors = get_state(msg)
+
             print(f'step {step}')
             for place_info in self._map:
                 import pprint
@@ -137,9 +169,7 @@ class Cryostasis(ASCIICapableComputer):
 
             step += 1
 
-            msg = self._get_msg(to_print=True)
-            if not msg:
-                raise ValueError()
+        a = 9
 
     def feed(self, value, to_print=None):
         if self._to_print_feed:
