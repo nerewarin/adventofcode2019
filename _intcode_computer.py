@@ -59,7 +59,7 @@ class IntcodeComputer(Iterator):
 
     def feed(self, value):
         # feed the generator
-        print(f'{value}', end=' ')
+        print(f'{chr(value)}', end='')
         self.signals.append(value)
 
     def get_value(self, val_or_idx, mode):

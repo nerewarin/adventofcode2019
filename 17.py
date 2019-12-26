@@ -27,6 +27,8 @@ class SetAndForget(IntcodeComputer):
                 chars.append(ascii_code)
             except NoSignal:
                 break
+            except StopIteration:
+                break
         return ''.join(chars)
 
     def _init_memory(self, memory):
@@ -79,8 +81,15 @@ class SetAndForget(IntcodeComputer):
 
         self._input_commands(commands)
 
-        res = self.compute()
-        return res
+        # video_enabled = 'y'
+        video_disabled = 'n'
+        self.feed(ord(video_disabled))
+        self.feed(self._new_line)
+
+        msg = self._get_msg()
+        # print()
+        # print(msg)
+        return ord(msg[-1])
 
     def _get_commands(self):
         robot_pos = self._map.index('^')
@@ -89,14 +98,14 @@ class SetAndForget(IntcodeComputer):
         a = 12
         b = 10
         c = 8
-        A = (L,a,L,b,R,c,L,a,R,c,R,b,R,a)
-        B = L, b, R, a, R, c
-        C = R, c, R, b, R,a
+        A = L, a, L, b, R, c, L, a,
+        B = R, c, R, b, R, a
+        C = L, b, R, a, R, c,
         return {
             'A': A,
             'B': B,
             'C': C,
-            'path': 'AABBCAB',
+            'path': 'ABABCCBABC',
         }
 
     @property
@@ -109,7 +118,7 @@ class SetAndForget(IntcodeComputer):
 
     def _input_commands(self, commands):
         command_path = commands['path']
-        for i, x in enumerate(command_path[1:]):
+        for i, x in enumerate(command_path[:-1]):
             self.feed(ord(x))
             self.feed(self._comma)
         self.feed(ord(command_path[-1]))
@@ -119,7 +128,7 @@ class SetAndForget(IntcodeComputer):
 
         for command_description in ('A', 'B', 'C'):
             command = commands[command_description]
-            for x in command[1:]:
+            for x in command[:-1]:
                 for val in str(x):
                     self.feed(ord(val))
                 self.feed(self._comma)
@@ -128,11 +137,9 @@ class SetAndForget(IntcodeComputer):
                 self.feed(ord(val))
             self.feed(self._new_line)
 
-            msg = self.compute()
+            msg = self._get_msg()
+            print()
             print(msg)
-            # print(self._get_msg())
-
-        command = 9
 
 
 def part1(*args, **kwargs):
