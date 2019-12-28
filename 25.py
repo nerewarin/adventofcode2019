@@ -9,6 +9,8 @@ import re
 import collections
 import itertools
 import warnings
+import random
+import math
 
 import _tools
 from _intcode_computer import ASCIICapableComputer
@@ -79,19 +81,27 @@ class Cryostasis(ASCIICapableComputer):
                 raise ValueError(f'wrong door parsed: {doors}')
 
             for door in sorted(doors, key=lambda door: directions[door] == last_move):
+
+                if door not in place2moves[place]:
+                    break
                 if directions[door] == last_move:
                     break
-                if door not in place2moves[place]:
-                    place2moves[place].add(door)
-                    break
             else:
+
                 if place not in ('Hull Breach', 'Stables', 'Navigation'):
                     raise RuntimeError('no unique way')
 
+            place2moves[place].add(door)
             return door
 
-        def get_state(msg):
-            place = msg.split('==')[1].strip()
+        def get_state(msg, place):
+            try:
+                _place = msg.split('==')[1].strip()
+            except Exception as e:
+                pass
+            else:
+                place = _place
+
             self.curr_place = place
             _d = msg[msg.rfind(place) + len(place) + 4:]
             description = _d[:_d.find('\n')]
@@ -120,14 +130,29 @@ class Cryostasis(ASCIICapableComputer):
         place2moves = collections.defaultdict(set)
         msg = self._get_msg(to_print=True)
         inv = []
-        while len(inv) < 8 or place != 'Navigation':
-            place, description, items, inv, doors = get_state(msg)
+        # while len(inv) < 8 or place != 'Navigation':
+        while len(inv) < 8 or place != 'Security Checkpoint':
+            place, description, items, inv, doors = get_state(msg, place)
+            if place == 'Security Checkpoint':
+                a = 9
 
             if place == 'Science Lab':
+            # if place == 'Engeneering':
                 door = 'north'
+            # elif place == 'Storage':
+            #     door = 'north'
+            # elif place == 'Navigation':
+            #     door = 'north'
+            # elif place == 'Stables':
+            #     door = 'north'
+            # elif place == 'Sick Bay':
+            #     door = 'west'
+            # elif place == 'Observatory':
+            #     door = 'south'
             else:
                 door = _get_door()
-
+            place2moves[place].add(door)
+            # door = _get_door()
             self.feed(door)
             last_move = door
 
@@ -149,7 +174,13 @@ class Cryostasis(ASCIICapableComputer):
         default_msg = self._get_msg(to_print=True)
         prev_nav_doors = None
         nav_doors = None
+        all_inv = list(inv)
+        probes = math.factorial(len(all_inv)) * 2
         while msg == default_msg or nav_doors == prev_nav_doors:
+            if not probes:
+                raise ValueError()
+
+            random.shuffle(inv)
             for i, item in enumerate(inv):
                 self.feed(f'drop {item}', to_print=True)
                 inv.pop(i)
@@ -158,16 +189,42 @@ class Cryostasis(ASCIICapableComputer):
                 # if msg == default_msg:
                 #     continue
 
-            self._get_msg(to_print=True)
+            msg = self._get_msg(to_print=True)
+            if self._get_msg(to_print=True):
+                raise ValueError('win??')
+            if not inv:
+                for item in all_inv:
+                    self.feed(f'take {item}')
+                    inv.append(item)
 
-            place, description, items, inv, nav_doors = get_state(msg)
+                print('picked all items')
+                probes -= 1
+                print(f'probes left {probes}')
+                continue
+
+
+            if msg == f'''
+You drop the {item}.
+
+Command?
+''':
+                continue
+
+
+            msg = self._get_msg(to_print=True)
+            if msg:
+                a = 9
+                try:
+                    place, description, items, inv, nav_doors = get_state(msg, place)
+                except Exception as e:
+                    place, description, items, inv, nav_doors = get_state(msg, place)
 
             print(f'step {step}')
-            for place_info in self._map:
-                import pprint
-                pprint.pprint(place_info)
-
             step += 1
+
+        for place_info in self._map:
+            import pprint
+            pprint.pprint(place_info)
 
         a = 9
 
