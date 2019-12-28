@@ -16,19 +16,16 @@ class TractorBeam:
 
     def count_ones(self, max_x, max_y):
         _map = collections.defaultdict(int)
-        # for y in range(max_y):
-        max_y = 50
-        x = 50
-        sm = 0
-        for y in range(max_x):
-            computer = IntcodeComputer()
-            computer.feed(x)
-            computer.feed(y)
-            # print(f'feed ({x}, {y})')
-            value = next(computer)
-            # print(f'received {res}')
-            # _map[(x, y)] = value
-            sm += value
+        for y in range(max_y):
+            for x in range(max_x):
+                computer = IntcodeComputer()
+                computer.feed(x)
+                computer.feed(y)
+                # print(f'feed ({x}, {y})')
+                res = next(computer)
+                # print(f'received {res}')
+                _map[(x, y)] = res
+
         return sum(val for val in _map.values() if val)
 
     def find_closest_square_under_beam(self, expected_width, expected_high): # 4950286 is too low!!!!
@@ -137,8 +134,6 @@ class TractorBeam:
         #     else:
         #         x += 1
         #         min_x += 1
-
-
 
 
 def part1(*args, **kwargs):
