@@ -52,27 +52,8 @@ class Cryostasis(ASCIICapableComputer):
                 break
 
             res = _res.group(1)
-            if res in (
-                'giant electromagnet',
-                'escape pod',
-                'infinite loop',
-                'molten lava',
-            ):
-                warnings.warn(f'found {res!r} in {self.curr_place!r} but skip it!')
-                continue
-
             info.append(res)
-        #
-        # info = [
-        #     m for m in msg[msg.rfind(s) + len(s):msg.rfind('Command')].split('\n')
-        #     if m
-        # ]
-        #
-        # items = []
-        # for _item in info:
-        #
-        #
-        #     items.append(_res.group(1))
+
         return info
 
     def run(self):
@@ -80,29 +61,15 @@ class Cryostasis(ASCIICapableComputer):
             if any(door not in directions for door in doors):
                 raise ValueError(f'wrong door parsed: {doors}')
 
-            for door in sorted(doors, key=lambda door: directions[door] == last_move):
-
-                if door not in place2moves[place]:
-                    break
-                if directions[door] == last_move:
-                    break
-            else:
-
-                if place not in ('Hull Breach', 'Stables', 'Navigation'):
-                    raise RuntimeError('no unique way')
-
-            place2moves[place].add(door)
+            _sorted_doors = list(sorted(doors, key=lambda door: place2moves[place][door]))
+            door = _sorted_doors[0]
+            place2moves[place][door] += 1
             return door
 
-        def get_state(msg, place):
-            try:
-                _place = msg.split('==')[1].strip()
-            except Exception as e:
-                pass
-            else:
-                place = _place
-
-            self.curr_place = place
+        def get_state(msg, to_print, autoloot=True):
+            place = msg.split('==')[1].strip()
+            if place == 'Engineering':
+                a= 9
             _d = msg[msg.rfind(place) + len(place) + 4:]
             description = _d[:_d.find('\n')]
             if 'Command?' not in msg:
@@ -111,13 +78,23 @@ class Cryostasis(ASCIICapableComputer):
             items = self._extract_info('Items here:', msg)
             if any(item in directions for item in items):
                 raise ValueError(f'wrong item parsed: {items}')
-            if items:
+            if items and autoloot:
                 for item in items:
-                    self.feed(f'take {item}')
-                # take_msg = self._get_msg(to_print=True)
+                    bad_items = (
+                        'giant electromagnet',
+                        'escape pod',
+                        'infinite loop',
+                        'molten lava',
+                        'photons',
+                    )
+                    if item in bad_items:
+                        warnings.warn(f'found {item!r} in {place!r} but skip it!')
+                        continue
+
+                    self.feed(f'take {item}', to_print=to_print)
 
             self.feed('inv')
-            inv_msg = self._get_msg(to_print=True)
+            inv_msg = self._get_msg(to_print=to_print)
             inv = self._extract_info('Items in your inventory:', inv_msg)
 
             doors = self._extract_info('Doors here lead:', msg[msg.index(place):])
@@ -125,115 +102,90 @@ class Cryostasis(ASCIICapableComputer):
 
         directions = self.directions
         step = 1
-        last_move = None
         place = None
-        place2moves = collections.defaultdict(set)
+        place2moves = collections.defaultdict(collections.Counter)
         msg = self._get_msg(to_print=True)
-        inv = []
-        # while len(inv) < 8 or place != 'Navigation':
-        while len(inv) < 8 or place != 'Security Checkpoint':
-            place, description, items, inv, doors = get_state(msg, place)
-            if place == 'Security Checkpoint':
-                a = 9
+        to_print = False
+        last_move = None
+        while True:
+            place, description, items, inv, doors = get_state(msg, to_print)
+            # print(f'{step}. {place}: last_move {last_move!r}, doors ({doors}), items: {items}')
+            if len(inv) >= 8 and place == 'Security Checkpoint':
+                break
 
-            if place == 'Science Lab':
-            # if place == 'Engeneering':
-                door = 'north'
-            # elif place == 'Storage':
-            #     door = 'north'
-            # elif place == 'Navigation':
-            #     door = 'north'
-            # elif place == 'Stables':
-            #     door = 'north'
-            # elif place == 'Sick Bay':
-            #     door = 'west'
-            # elif place == 'Observatory':
-            #     door = 'south'
-            else:
-                door = _get_door()
-            place2moves[place].add(door)
-            # door = _get_door()
-            self.feed(door)
-            last_move = door
+            door = _get_door()
+
+            self.feed(door, to_print=to_print)
 
             self._map.append({
                 'place': place,
                 'doors': doors,
                 'move': door,
-                'take': items,
+                'items': items,
                 'inv': inv,
                 'description': description,
             })
 
             step += 1
 
-            msg = self._get_msg(to_print=True)
+            last_move = door
+
+            msg = self._get_msg(to_print=to_print)
             if not msg:
                 raise ValueError()
 
+        '''
+            Security Checkpoint
+        '''
         default_msg = self._get_msg(to_print=True)
         prev_nav_doors = None
         nav_doors = None
         all_inv = list(inv)
         probes = math.factorial(len(all_inv)) * 2
+        # to_print = True
         while msg == default_msg or nav_doors == prev_nav_doors:
             if not probes:
-                raise ValueError()
+                raise ValueError('no probes left')
 
             random.shuffle(inv)
             for i, item in enumerate(inv):
-                self.feed(f'drop {item}', to_print=True)
+                self.feed(f'drop {item}', to_print=to_print)
                 inv.pop(i)
                 break
-                # msg = self._get_msg(to_print=True)
-                # if msg == default_msg:
-                #     continue
 
-            msg = self._get_msg(to_print=True)
-            if self._get_msg(to_print=True):
-                raise ValueError('win??')
+            place, description, items, inv, doors = get_state(msg, to_print, autoloot=False)
+
+            for door in doors:
+                if directions[door] != last_move:
+                    break
+
+            self.feed(door, to_print=to_print)
+            msg = self._get_msg(to_print=to_print)
+            if 'You can\'t go that way' not in msg and  'Alert' not in msg:
+                return re.match(r'(\d+)', msg).group(1)
+
             if not inv:
                 for item in all_inv:
                     self.feed(f'take {item}')
                     inv.append(item)
 
-                print('picked all items')
-                probes -= 1
-                print(f'probes left {probes}')
+                # print('picked all items')
+                # print(f'probes left {probes}')
                 continue
 
+            probes -= 1
 
-            if msg == f'''
-You drop the {item}.
-
-Command?
-''':
-                continue
-
-
-            msg = self._get_msg(to_print=True)
-            if msg:
-                a = 9
-                try:
-                    place, description, items, inv, nav_doors = get_state(msg, place)
-                except Exception as e:
-                    place, description, items, inv, nav_doors = get_state(msg, place)
-
-            print(f'step {step}')
+            # print(f'step {step}')
             step += 1
 
-        for place_info in self._map:
-            import pprint
-            pprint.pprint(place_info)
-
-        a = 9
-
     def feed(self, value, to_print=None):
-        if self._to_print_feed:
+        _to_print = self._get_to_print(to_print)
+
+        if _to_print:
             print('>>>', end='')
 
         for x in str(value):
-            super().feed(ord(x), to_print)
+            super().feed(ord(x), _to_print)
 
         super().feed(self._new_line)
 
@@ -263,6 +215,6 @@ def test(test_num):
 if __name__ == '__main__':
     for res in (
         # test(1),
-        part1(),
+        part1(), # 536904736
     ):
         print(res)

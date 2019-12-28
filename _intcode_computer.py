@@ -59,14 +59,16 @@ class IntcodeComputer(Iterator):
     def __next__(self):
         return next(self.gen)
 
-    def feed(self, value, to_print=None):
-        # feed the generator
+    def _get_to_print(self, to_print):
         _to_print = None
         if to_print is not None:
             _to_print = to_print
         if _to_print is None:
             _to_print = self._to_print_feed
 
+    def feed(self, value, to_print=None):
+        # feed the generator
+        _to_print = self._get_to_print(to_print)
         if _to_print:
             print(f'{chr(value)}', end='')
 
