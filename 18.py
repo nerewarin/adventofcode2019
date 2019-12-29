@@ -371,13 +371,13 @@ def test2(test_num):
 
 if __name__ == '__main__':
     for res in (
-        test(1),
-        test(2),
-        test(3),
-        part1(),
-        test2(1),
-        test2(2),
-        test2(3),
-        # part2(),
+        # test(1),
+        # test(2),
+        # test(3),
+        # part1(),
+        # test2(1),
+        # test2(2),
+        # test2(3),
+        part2(),
     ):
         print(res)
