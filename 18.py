@@ -24,9 +24,10 @@ class Tile:
 
 
 class MazeWithKeysAndDoors:
-    def __init__(self, inp=None):
+    def __init__(self, inp=None, to_print=False):
         self._maze, self._start_pos, self._doors, self._keys = self._parse_input_to_maze(inp)
         self._keys_collected = tuple()
+        self._to_print = to_print
 
     def _parse_input_to_maze(self, _inp):
         inp = _inp or _tools.get_puzzle_input(scalar_type=str, delimeter='', multiline=True)
@@ -72,6 +73,9 @@ class MazeWithKeysAndDoors:
         return symbol == Tile.agent
 
     def _draw_maze(self, vertex=None, keys=tuple()):
+        if not self._to_print:
+            return
+
         if vertex is None:
             vertex = self._start_pos
 
@@ -151,7 +155,6 @@ class MazeWithKeysAndDoors:
                 return level
 
             for x, y, new_keys_collected in self._get_adjacent_nodes(vertex, keys_collected):
-                # TODO
                 node = (x, y)
                 if (node, new_keys_collected) in seen:
                     continue
@@ -179,19 +182,39 @@ def test(test_num):
             #########
         '''
         expected = 8
+    elif test_num == 2:
+        _inp = '''
+            ########################
+            #f.D.E.e.C.b.A.@.a.B.c.#
+            ######################.#
+            #d.....................#
+            ########################
+        '''
+        expected = 86
+    elif test_num == 3:
+        _inp = '''
+            ########################
+            #...............b.C.D.f#
+            #.######################
+            #.....@.a.B.c.d.A.e.F.g#
+            ########################
+        '''
+        expected = 132
     else:
         raise NotImplementedError(f'unknown test_num = {test_num}')
 
     inp = [val.strip() for val in _inp.split('\n') if val.strip()]
     # inp = None
-    res = MazeWithKeysAndDoors(inp).get_shortest_path_of_collecting_all_keys()
+    res = MazeWithKeysAndDoors(inp, to_print=True).get_shortest_path_of_collecting_all_keys()
     assert res == expected, 'test{} failed!: {}'.format(test_num, res)
     return 'test{} ok'.format(test_num)
 
 
 if __name__ == '__main__':
     for res in (
-        test(1),
-        # part1(), # 536904736
+        # test(1),
+        # test(2),
+        # test(3),
+        part1(),
     ):
         print(res)
