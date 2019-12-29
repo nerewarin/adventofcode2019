@@ -29,10 +29,11 @@ class NoSolution(Exception):
 
 
 class MazeWithKeysAndDoors:
-    def __init__(self, inp=None, to_print=False):
+    def __init__(self, inp=None, idx=None, to_print=False):
         self._maze, self._start_pos, self._doors, self._keys = self._parse_input_to_maze(inp)
         self._collected_keys = tuple()
         self._to_print = to_print
+        self.idx = idx
 
     def _parse_input_to_maze(self, _inp):
         inp = _inp or _tools.get_puzzle_input(scalar_type=str, delimeter='', multiline=True)
@@ -71,6 +72,7 @@ class MazeWithKeysAndDoors:
 
     @staticmethod
     def _is_door(symbol):
+        if not isinstance(symbol, str):  return False
         return symbol.isalpha() and symbol.isupper()
 
     @staticmethod
@@ -131,15 +133,17 @@ class MazeWithKeysAndDoors:
             if symbol is None:
                 continue
 
-            if self._is_wall(symbol):
+            elif self._is_wall(symbol):
                 continue
 
-            if self._is_free(symbol) or self._is_agent(symbol):
+            elif self._is_free(symbol) or self._is_agent(symbol):
                 yield x, y, keys
 
             elif self._is_door(symbol):
                 if self._door_is_open(symbol, keys):
                     yield x, y, keys
+                else:
+                    yield x, y, symbol
 
             elif self._is_key(symbol):
                 _keys = set(keys)
@@ -157,6 +161,7 @@ class MazeWithKeysAndDoors:
             (self._start_pos, tuple(self._collected_keys)): start_level
         }
         visit_order = []
+        doors_locked = {}
 
         while queue:
             vertex, level, keys_collected = queue.popleft()
@@ -166,9 +171,14 @@ class MazeWithKeysAndDoors:
 
             if self.is_complete(keys_collected):
                 # all keys collected
-                return vertex, level, keys_collected
+                return vertex, level, keys_collected, doors_locked
 
-            for x, y, new_keys_collected in self._get_adjacent_nodes(vertex, keys_collected):
+            for x, y, door_or_keys in self._get_adjacent_nodes(vertex, keys_collected):
+                if self._is_door(door_or_keys):
+                    doors_locked[door_or_keys] = (x, y)
+                    continue
+
+                new_keys_collected = door_or_keys
                 node = (x, y)
                 if (node, new_keys_collected) in seen:
                     continue
@@ -190,7 +200,7 @@ class MazeWithKeysAndDoors:
             node, keys_collected = state
             level = seen[state]
             s.append({state: level})
-            return node, level, keys_collected
+            return node, level, keys_collected, doors_locked
         return
 
 
@@ -198,25 +208,42 @@ class MazeWithKeysAndDoorsFourAgents(MazeWithKeysAndDoors):
     def __init__(self, inp=None, **kwargs):
         super().__init__(inp, **kwargs)
 
-        center_x, center_y = self._start_pos
+        center_x, center_y = len(self._maze[0]) // 2, len(self._maze) // 2
 
         if not inp:
-            self._maze[center_y + 1][center_x + 1] = Tile.wall
+            self._maze[center_y][center_x] = Tile.wall
+            self._maze[center_y + 1][center_x] = Tile.wall
+            self._maze[center_y - 1][center_x] = Tile.wall
+            self._maze[center_y][center_x + 1] = Tile.wall
+            self._maze[center_y][center_x - 1] = Tile.wall
+            self._maze[center_y + 1][center_x + 1] = Tile.agent
             self._maze[center_y + 1][center_x - 1] = Tile.agent
             self._maze[center_y - 1][center_x + 1] = Tile.agent
             self._maze[center_y - 1][center_x - 1] = Tile.agent
 
         north_part = self._maze[:center_y]
-        south_part = self._maze[center_y:]
+        south_part = self._maze[center_y + 1:]
+        assert len(south_part) == len(north_part), f'len(north_part) ({len(north_part)}) != len(south_path) ({south_path})'
         self._solvers = [
-            MazeWithKeysAndDoors(maze)
-            for maze in (
+            MazeWithKeysAndDoors(maze, idx)
+            for idx, maze in enumerate([
                 [row[:center_x] for row in north_part],
-                [row[center_x:] for row in north_part],
+                [row[center_x + 1:] for row in north_part],
                 [row[:center_x] for row in south_part],
-                [row[center_x:] for row in south_part],
-            )
+                [row[center_x + 1:] for row in south_part],
+            ])
         ]
+        max_y = None
+        max_x = None
+        for s in self._solvers:
+            if max_y and len(s._maze) != max_y:
+                raise ValueError('bad map parsing')
+            max_y = len(s._maze)
+
+            row_wight = len(s._maze[0])
+            if max_x and row_wight != max_x:
+                raise ValueError(f'bad row_wight {row_wight}')
+            max_x = row_wight
 
     def get_shortest_path_of_collecting_all_keys(self):
         steps = []
@@ -226,8 +253,9 @@ class MazeWithKeysAndDoorsFourAgents(MazeWithKeysAndDoors):
                 if idx in solved:
                     continue
 
+                solver._collected_keys = tuple(set(solver._collected_keys) - set(solver._keys))
                 try:
-                    vertex, level, keys_collected = solver.get_shortest_path_of_collecting_all_keys()
+                    vertex, level, keys_collected, doors_locked = solver.get_shortest_path_of_collecting_all_keys()
                     self.update_collected_keys(keys_collected)
                     if solver.is_complete(keys_collected):
                         steps.append(level)
@@ -248,13 +276,16 @@ class MazeWithKeysAndDoorsFourAgents(MazeWithKeysAndDoors):
 
 
 def part1(*args, **kwargs):
-    vertex, level, keys_collected = MazeWithKeysAndDoors(*args, **kwargs).get_shortest_path_of_collecting_all_keys()
+    vertex, level, keys_collected, doors_locked = MazeWithKeysAndDoors(*args, **kwargs).get_shortest_path_of_collecting_all_keys()
     return level
 
 
 def part2(*args, **kwargs):
-    vertex, level, keys_collected = MazeWithKeysAndDoorsFourAgents(*args, **kwargs).get_shortest_path_of_collecting_all_keys()
-    return level
+    res = MazeWithKeysAndDoorsFourAgents(*args, **kwargs).get_shortest_path_of_collecting_all_keys()
+    if res <= 1086:
+        raise ValueError(f'answer {res} is too low!')
+
+    return res
 
 
 def test(test_num):
@@ -288,7 +319,7 @@ def test(test_num):
 
     inp = [val.strip() for val in _inp.split('\n') if val.strip()]
     # inp = None
-    vertex, level, keys_collected = MazeWithKeysAndDoors(inp, to_print=True).get_shortest_path_of_collecting_all_keys()
+    vertex, level, keys_collected, doors_locked = MazeWithKeysAndDoors(inp, to_print=True).get_shortest_path_of_collecting_all_keys()
     assert level == expected, 'test{} failed!: {}'.format(test_num, res)
     return 'test{} ok'.format(test_num)
 
@@ -321,7 +352,9 @@ def test2(test_num):
             #############
             #DcBa.#.GhKl#
             #.###@#@#I###
-            #e#d#####j#k#
+            #e#######j###
+            #############
+            ###d#######k#
             ###C#@#@###J#
             #fEbA.#.FgHi#
             #############
@@ -338,13 +371,13 @@ def test2(test_num):
 
 if __name__ == '__main__':
     for res in (
-        # test(1),
-        # test(2),
-        # test(3),
-        # part1(),
-        # test2(1),
-        # test2(2),
-        # test2(3), # fail
-        part2(),
+        test(1),
+        test(2),
+        test(3),
+        part1(),
+        test2(1),
+        test2(2),
+        test2(3),
+        # part2(),
     ):
         print(res)
