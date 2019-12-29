@@ -7,10 +7,6 @@ https://adventofcode.com/2019/day/18
 
 import re
 import collections
-import itertools
-import warnings
-import random
-import math
 
 import _tools
 
@@ -195,7 +191,6 @@ class MazeWithKeysAndDoors:
 
         # now, instead of raise NoSolution, we should return maximum keys and a minimun level where they were reached
         s = []
-        # [(x, seen[x]) for x in (sorted(seen, key=lambda key_val: (-len(key_val[1]), key_val[1])))]
         for state in sorted(seen, key=lambda key_val: (-len(key_val[1]), key_val[1])):
             node, keys_collected = state
             level = seen[state]
