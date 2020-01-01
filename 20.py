@@ -6,7 +6,6 @@ https://adventofcode.com/2019/day/20
 """
 
 import collections
-import itertools
 
 import _tools
 
@@ -18,6 +17,10 @@ class Tile:
     exit_portal = 'Z'
 
 
+class NoSolution(Exception):
+    pass
+
+
 class DonutMaze:
     def __init__(self, inp=None, to_print=False):
         if inp is None:
@@ -27,7 +30,6 @@ class DonutMaze:
         self.to_print = to_print
         self._portals = {}
         self._maze, self._portal_parts = self._parse_maze_and_portals()
-        # self._start, self._portals = self._parse_portal_parts(self._portal_parts)
         self._start = self._get_start()
 
     def _parse_maze_and_portals(self):
@@ -85,66 +87,6 @@ class DonutMaze:
     def _is_free(symbol):
         return symbol == Tile.free
 
-    # def _parse_portal_parts(self, portal_parts):
-    #     portals = {}
-    #
-    #     start_pos = None
-    #     for portal, portal_poses in portal_parts.items():
-    #         # every portal consists of two parts
-    #         if len(portal_poses) != 2:
-    #             raise ValueError(f'len(portal_poses) = {len(portal_poses)} for portal {portal}')
-    #
-    #         if portal == 'A':
-    #             # start_pos = self._get_only_one_nearest()
-    #             continue
-    #
-    #         portals[portal] = self._get_portal_tiles(portal, portal_parts)
-
-    # def _get_portal_tiles(self, portal, portal_parts):
-    #     entry_pos = None
-    #     exit_pos = None
-    #     for portal_pos in portal_parts[portal]:
-    #         for adjacent_node in self._get_adjacent_coordinates(portal_pos):
-    #             symbol = self._maze.get(adjacent_node)
-    #             if symbol is None:
-    #                 continue
-    #
-    #             if self._is_free(symbol):
-    #                 entry_pos = adjacent_node
-    #
-    #             elif self._is_portal(x, y):
-    #
-    #
-    #     if first[0] == second[0]:
-    #         common_x = first[0]
-    #         assert abs(first[1] - second[1]) == 1
-    #         centre_y = (first[1] + second[1]) / 2
-    #         candidates = (
-    #             (common_x, centre_y - 1.5),
-    #             (common_x, centre_y + 1.5),
-    #         )
-    #     elif first[1] == second[1]:
-    #         assert first[1] == second[1]
-    #         common_y = first[1]
-    #         assert abs(first[0] - second[0]) == 1
-    #         centre_x = (first[0] + second[0]) / 2
-    #         candidates = (
-    #             (centre_x - 1.5, common_y),
-    #             (centre_x + 1.5, common_y),
-    #         )
-    #     else:
-    #         raise ValueError(f'portal_poses are not adjacent! {portal_parts[portal]}')
-    #
-    #     for candidate in candidates:
-    #         for adjacent_node in self._get_adjacent_coordinates(candidate):
-    #             break
-    #     else:
-    #         raise ValueError()
-    #
-    #     # portal_parts has format 'A': [pos1, pos2]
-    #     # lets group them by adjacency
-    #     for adjacent_tile in self._get_adjacent_coordinates(candidate):
-
     def _get_adjacent_coordinates(self, vertex):
         for coords in (
             (vertex[0], vertex[1] - 1),
@@ -170,31 +112,8 @@ class DonutMaze:
                     symbol_poses.append(adjacent_pos)
         if len(symbol_poses) > 2:
             raise RuntimeError('prog error')
-        # exit_label_pos = symbol_poses[0]
 
-        # # find pos of second portal tile
-        for exit_label_pos in symbol_poses:
-            exit_portal_pos = None
-            for adjacent_pos in self._get_adjacent_coordinates(exit_label_pos):
-                symbol = self._maze[adjacent_pos]
-
-                if self._is_free(symbol):
-                    return adjacent_pos
-
-                elif self._is_portal(symbol):
-                    exit_portal_pos = adjacent_pos
-
-            for adjacent_pos in self._get_adjacent_coordinates(exit_portal_pos):
-                symbol = self._maze.get(adjacent_pos)
-                if self._is_free(symbol):
-                    return adjacent_pos
-            else:
-                raise ValueError()
-        # else:
-        #     raise ValueError()
-
-        # try again!
-        # # find pos of second portal tile
+        # find exit
         for exit_label_pos in symbol_poses:
             exit_portal_pos = None
             for adjacent_pos in self._get_adjacent_coordinates(exit_label_pos):
@@ -213,7 +132,7 @@ class DonutMaze:
             else:
                 raise ValueError()
         else:
-            raise ValueError()
+            raise NoSolution()
 
     def _get_free_adjacent_nodes(self, vertex, use_portals=True):
         x0, y0 = vertex
@@ -257,17 +176,10 @@ class DonutMaze:
             vertex, level = queue.popleft()
             visit_order.append((vertex, level))
 
-            # self._draw_maze(vertex)
-
             if self._is_complete(vertex):
-                # all keys collected
                 return level - 1
 
             for x, y in self._get_free_adjacent_nodes(vertex):
-                # if self._is_door(door_or_keys):
-                #     doors_locked[door_or_keys] = (x, y)
-                #     continue
-
                 node = (x, y)
                 if node in seen:
                     continue
@@ -279,18 +191,6 @@ class DonutMaze:
                 queue.append(
                     (node, new_level)
                 )
-
-        # raise NoSolution()
-
-
-def part1(*args, **kwargs):
-    return DonutMaze(*args, **kwargs).get_shortest_path()
-
-
-def part2():
-    solver = DonutMaze()
-    solver.simulate_recursively(200)
-    return solver.count_all_bugs()
 
 
 def _parse_input(inp):
@@ -337,9 +237,19 @@ def test(test_num):
     return 'test{} ok'.format(test_num)
 
 
+def run(part_num, *args, **kwargs):
+    if part_num == 1:
+        res = DonutMaze(*args, **kwargs).get_shortest_path()
+        expected = 498
+    else:
+        raise NotImplementedError(f'unknown part_num = {part_num}')
+    assert res == expected,  'part{} failed!: {}'.format(part_num, res)
+    return 'run{} = {}'.format(part_num, res)
+
+
 if __name__ == '__main__':
-    for res in (
-        # test(1),
-        part1(),
+    for _res in (
+        test(1),
+        run(1),
     ):
-        print(res)
+        print(_res)
