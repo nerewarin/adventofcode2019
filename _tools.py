@@ -17,9 +17,14 @@ def get_puzzle_input(scalar_type=int, delimeter=',', multiline=False):
     fpath = os.path.join('inputs', '{}.txt'.format(get_initiator_fname()))
     print('reading {}'.format(fpath))
     with open(fpath, 'r') as f:
-        if not multiline:
-            return [scalar_type(i.strip()) for i in f.readline().split(delimeter)]
-        return [scalar_type(i.strip()) for i in f.readlines()]
+        if multiline:
+            lines = [i for i in f.readlines()]
+        else:
+            lines = [i for i in f.readline().split(delimeter)]
+
+        lines = [line.strip() for line in lines]
+        lines = [scalar_type(symb) for symb in lines]
+        return lines
 
 
 def lcm(a, b):
