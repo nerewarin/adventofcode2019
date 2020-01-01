@@ -9,12 +9,13 @@ def get_initiator_fname():
     for line in reversed(traceback.format_stack()):
         res = re.search(r'File.*"(.*)[\\\/](\d+).py', line)
         if res:
-            return res.group(2)
+            fname = res.group(2)
+            return os.path.join('inputs', '{}.txt'.format(fname))
     raise ValueError()
 
 
-def get_puzzle_input(scalar_type=int, delimeter=',', multiline=False):
-    fpath = os.path.join('inputs', '{}.txt'.format(get_initiator_fname()))
+def get_puzzle_input(scalar_type=int, delimeter=',', multiline=False, strip=True):
+    fpath = get_initiator_fname()
     print('reading {}'.format(fpath))
     with open(fpath, 'r') as f:
         if multiline:
@@ -22,7 +23,9 @@ def get_puzzle_input(scalar_type=int, delimeter=',', multiline=False):
         else:
             lines = [i for i in f.readline().split(delimeter)]
 
-        lines = [line.strip() for line in lines]
+        if strip:
+            lines = [line.strip() for line in lines]
+
         lines = [scalar_type(symb) for symb in lines]
         return lines
 
