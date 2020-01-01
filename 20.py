@@ -155,7 +155,7 @@ class DonutMaze:
             if coords in self._maze:
                 yield coords
 
-    def _get_portal_exit(self, first_portal_symbol, first_portal_part, second_portal_symbol, second_portal_part_pos):
+    def _get_portal_exit(self, first_portal_symbol, first_portal_part_pos, second_portal_symbol, second_portal_part_pos):
         if second_portal_symbol in self._portals:
             return self._portals[second_portal_symbol]
 
@@ -164,29 +164,54 @@ class DonutMaze:
         _symbol_poses = [pos for pos in self._portal_parts[second_portal_symbol]]
         for pos in _symbol_poses:
             for adjacent_pos in self._get_adjacent_coordinates(pos):
-                if adjacent_pos == first_portal_part:
+                if adjacent_pos in (first_portal_part_pos, second_portal_part_pos):
                     continue
                 if self._maze[adjacent_pos] == first_portal_symbol:
                     symbol_poses.append(adjacent_pos)
-        if len(symbol_poses) != 1:
+        if len(symbol_poses) > 2:
             raise RuntimeError('prog error')
-        exit_label_pos = symbol_poses[0]
+        # exit_label_pos = symbol_poses[0]
 
         # # find pos of second portal tile
-        exit_portal_pos = None
-        for adjacent_pos in self._get_adjacent_coordinates(exit_label_pos):
-            symbol = self._maze[adjacent_pos]
+        for exit_label_pos in symbol_poses:
+            exit_portal_pos = None
+            for adjacent_pos in self._get_adjacent_coordinates(exit_label_pos):
+                symbol = self._maze[adjacent_pos]
 
-            if self._is_free(symbol):
-                return adjacent_pos
+                if self._is_free(symbol):
+                    return adjacent_pos
 
-            elif self._is_portal(symbol):
-                exit_portal_pos = adjacent_pos
+                elif self._is_portal(symbol):
+                    exit_portal_pos = adjacent_pos
 
-        for adjacent_pos in self._get_adjacent_coordinates(exit_portal_pos):
-            symbol = self._maze.get(adjacent_pos)
-            if self._is_free(symbol):
-                return adjacent_pos
+            for adjacent_pos in self._get_adjacent_coordinates(exit_portal_pos):
+                symbol = self._maze.get(adjacent_pos)
+                if self._is_free(symbol):
+                    return adjacent_pos
+            else:
+                raise ValueError()
+        # else:
+        #     raise ValueError()
+
+        # try again!
+        # # find pos of second portal tile
+        for exit_label_pos in symbol_poses:
+            exit_portal_pos = None
+            for adjacent_pos in self._get_adjacent_coordinates(exit_label_pos):
+                symbol = self._maze[adjacent_pos]
+
+                if self._is_free(symbol):
+                    return adjacent_pos
+
+                elif self._is_portal(symbol):
+                    exit_portal_pos = adjacent_pos
+
+            for adjacent_pos in self._get_adjacent_coordinates(exit_portal_pos):
+                symbol = self._maze.get(adjacent_pos)
+                if self._is_free(symbol):
+                    return adjacent_pos
+            else:
+                raise ValueError()
         else:
             raise ValueError()
 
@@ -212,7 +237,7 @@ class DonutMaze:
                     continue
                 if symbol == Tile.exit_portal:
                     yield adjacent_node
-
+                    continue
                 second_portal_part_pos = (x0 + (x - x0) * 2, (y0 + (y - y0) * 2))
                 second_portal_symbol = self._maze[second_portal_part_pos]
                 yield self._get_portal_exit(symbol, adjacent_node, second_portal_symbol, second_portal_part_pos)
@@ -314,7 +339,7 @@ def test(test_num):
 
 if __name__ == '__main__':
     for res in (
-        test(1),
-        # part1(),
+        # test(1),
+        part1(),
     ):
         print(res)
