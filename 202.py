@@ -28,7 +28,7 @@ class DonutMaze:
                 inp = _parse_input(f.read())
         self.inp = inp
         self.to_print = to_print
-        self._portals = {}
+        self._portal_title2exit_pos = {}
         self._maze, self._portal_parts = self._parse_maze_and_portals()
         self._start = self._get_start()
         self._recursive = recursive
@@ -102,44 +102,56 @@ class DonutMaze:
 
     def _get_portal_exit(self, first_portal_symbol, first_portal_part_pos, second_portal_symbol, second_portal_part_pos, floor):
         portal_title = first_portal_symbol + second_portal_symbol
-        if (first_portal_part_pos, floor) in self._portals:
-            return self._portals[first_portal_part_pos]
+        portal_entry_pos = first_portal_part_pos
+        next_floor = self._get_next_floor(portal_entry_pos, floor, portal_title)
+
+        if portal_title in self._portal_title2exit_pos:
+            exit_pos = self._portal_title2exit_pos[portal_title]
+            return self._return_portal_exit(exit_pos, next_floor, portal_title)
 
         # find pos of second portal part symbol
         symbol_poses = []
         _symbol_poses = [pos for pos in self._portal_parts[second_portal_symbol]]
         for pos in _symbol_poses:
-            for adjacent_pos in self._get_adjacent_coordinates(pos):
-                if adjacent_pos in (first_portal_part_pos, second_portal_part_pos):
+            for exit_pos_candidate in self._get_adjacent_coordinates(pos):
+                if exit_pos_candidate in (first_portal_part_pos, second_portal_part_pos):
                     continue
-                if self._maze[adjacent_pos] == first_portal_symbol:
-                    symbol_poses.append(adjacent_pos)
+                if self._maze[exit_pos_candidate] == first_portal_symbol:
+                    symbol_poses.append(exit_pos_candidate)
         if len(symbol_poses) > 2:
             raise RuntimeError('prog error')
 
         # find exit
         for exit_portal_part1 in symbol_poses:
             exit_portal_part2 = None
-            for adjacent_pos in self._get_adjacent_coordinates(exit_portal_part1):
-                symbol = self._maze[adjacent_pos]
+            for exit_pos_candidate in self._get_adjacent_coordinates(exit_portal_part1):
+                symbol = self._maze[exit_pos_candidate]
 
                 if self._is_free(symbol):
-                    return adjacent_pos, self._get_next_floor(*adjacent_pos, floor, portal_title), portal_title
+                    return self._return_portal_exit(exit_pos_candidate, next_floor, portal_title)
 
                 elif self._is_portal(symbol):
-                    exit_portal_part2 = adjacent_pos
+                    exit_portal_part2 = exit_pos_candidate
 
-            for adjacent_pos in self._get_adjacent_coordinates(exit_portal_part2):
-                symbol = self._maze.get(adjacent_pos)
+            for exit_pos_candidate in self._get_adjacent_coordinates(exit_portal_part2):
+                symbol = self._maze.get(exit_pos_candidate)
                 if self._is_free(symbol):
-                    # self._portals[(first_portal_part_pos, floor)] = adjacent_pos, next_floor
-                    return adjacent_pos, self._get_next_floor(*adjacent_pos, floor, portal_title), portal_title
+                    return self._return_portal_exit(exit_pos_candidate, next_floor, portal_title)
             else:
                 raise ValueError()
         else:
             raise NoSolution()
 
-    def _get_next_floor(self, x, y, floor, portal_double_symbol):
+    def _return_portal_exit(self, exit_pos, next_floor, portal_title):
+        if portal_title not in self._portal_title2exit_pos:
+            self._portal_title2exit_pos[portal_title] = exit_pos
+        elif self._portal_title2exit_pos[portal_title] != exit_pos:
+            raise ValueError('bad caching!')
+
+        return exit_pos, next_floor, portal_title
+
+    def _get_next_floor(self, portal_entry_pos, floor, portal_title):
+        x, y = portal_entry_pos
         if not self._recursive:
             shift = 0
         elif 2 < x < self._maze_width - 3 and 2 < y < self._maze_height - 3:
@@ -187,7 +199,7 @@ class DonutMaze:
         seen = {
             (start_floor, self._start): start_level
         }
-        # visit_order = [(start_level, start_floor, self._start)]
+        visit_order = [(start_level, start_floor, self._start)]
 
         while queue:
             vertex, level, floor, path = queue.popleft()
@@ -209,7 +221,7 @@ class DonutMaze:
                 seen[(next_floor, xy)] = new_level
 
                 # if next_floor != floor:
-                # visit_order.append((level, floor, vertex))
+                visit_order.append((level, floor, vertex))
 
                 _path.append((vertex, floor, portal_title))
 
