@@ -80,14 +80,14 @@ class SlamShuffle:
             return 0
         return (period * position - 1) % deck_size
 
-    def get_a_b(self, position, n, cycles):
-        # n = deck_size
+    def get_a_b(self, position, deck_size, cycles):
+        n = deck_size
         a, b = 1, 0
         for instr_idx, raw_instruction in enumerate(self.inp):
             print(f'a={a} b={b}')
             print(f'{position}: {raw_instruction}')
             if raw_instruction == 'deal into new stack':
-                a = -a * n
+                a = -a % n
                 b = (-b + n - 1) % n
                 continue
 
@@ -106,12 +106,11 @@ class SlamShuffle:
                 continue
             raise ValueError(f'unknown {raw_instruction}')
 
-        print(f'a={a} b={b}')
-        k = cycles
-        a = pow(a, k, n)
-        b = b * (pow(a, k, n) - 1) * pow(a - 1, n - 2, n)
-        print(f'a={a} b={b}')
-        return a, b
+        pow_ = pow(a, cycles, deck_size)
+        a, b = pow_, b * (pow_ - 1) * pow(a - 1, n - 2, n) % n
+
+        result = pow(a, n-2, n) * (position - b) % n
+        return result
 
 
 def _str_to_deck(s):
@@ -160,7 +159,13 @@ cut -1
 
 
 def part1(*args, **kwargs):
-    return SlamShuffle(*args, **kwargs).get_position(2019)
+    pos = 2019
+    result = SlamShuffle(*args, **kwargs).get_position(pos)
+    # result = SlamShuffle(*args, **kwargs).get_a_b(pos, 1007, 1)
+
+    if result != 5472:
+        raise ValueError(f'{result} is wrong or do u use another input? then skip this message')
+    return result
 
 
 def part2(*args, **kwargs):
@@ -169,13 +174,15 @@ def part2(*args, **kwargs):
     ss = SlamShuffle(*args, **kwargs)
     pos2020 = 2020
     pos2020 = ss.get_a_b(pos2020, deck_size, cycles)
+    if pos2020 <= 54854748320449:
+        raise ValueError(f'{pos2020} is too low!')
     return pos2020
 
 
 if __name__ == '__main__':
     for res in (
-        # test1(),
-        # part1(),
+        test1(),
+        part1(),
         part2(),
     ):
         print(res)
