@@ -6,6 +6,7 @@ https://adventofcode.com/2019/day/20
 """
 
 import collections
+import itertools
 
 import _tools
 
@@ -15,6 +16,7 @@ class Tile:
     wall = '#'
     entry_portal = 'A'
     exit_portal = 'Z'
+    end = object()
 
 
 class NoSolution(Exception):
@@ -22,17 +24,19 @@ class NoSolution(Exception):
 
 
 class DonutMaze:
-    def __init__(self, inp=None, to_print=False, recursive=False):
+    def __init__(self, part_num, inp=None, is_test=False, to_print=False, recursive=False):
         if inp is None:
             with open(_tools.get_initiator_fname()) as f:
                 inp = _parse_input(f.read())
+        self._part_num = part_num
+        self._is_test = is_test
         self.inp = inp
         self.to_print = to_print
-        self._portal_title2exit_pos = {}
+        self._portal2exit_pos = {}
         self._maze, self._portal_parts = self._parse_maze_and_portals()
         self._start = self._get_start()
         self._recursive = recursive
-        self._maze_width = len(self.inp[0])
+        self._maze_width = max(len(line) for line in self.inp)  # maze width is a max width of any line
         self._maze_height = len(self.inp)
 
     def _parse_maze_and_portals(self):
@@ -49,27 +53,31 @@ class DonutMaze:
         return pos2symbol, portal_parts
 
     def _get_start(self):
-        first, second = self._portal_parts[Tile.entry_portal]
-
-        if first[0] == second[0]:
-            common_x = first[0]
-            assert abs(first[1] - second[1]) == 1
-            centre_y = (first[1] + second[1]) / 2
-            candidates = (
-                (common_x, centre_y - 1.5),
-                (common_x, centre_y + 1.5),
-            )
-        elif first[1] == second[1]:
-            assert first[1] == second[1]
-            common_y = first[1]
-            assert abs(first[0] - second[0]) == 1
-            centre_x = (first[0] + second[0]) / 2
-            candidates = (
-                (centre_x - 1.5, common_y),
-                (centre_x + 1.5, common_y),
-            )
+        entry_portal_poses = self._portal_parts[Tile.entry_portal]
+        for first, second in itertools.permutations(entry_portal_poses, 2):
+            if first[0] == second[0]:
+                common_x = first[0]
+                assert abs(first[1] - second[1]) == 1
+                centre_y = (first[1] + second[1]) / 2
+                candidates = (
+                    (common_x, centre_y - 1.5),
+                    (common_x, centre_y + 1.5),
+                )
+                break
+            elif first[1] == second[1]:
+                assert first[1] == second[1]
+                common_y = first[1]
+                assert abs(first[0] - second[0]) == 1
+                centre_x = (first[0] + second[0]) / 2
+                candidates = (
+                    (centre_x - 1.5, common_y),
+                    (centre_x + 1.5, common_y),
+                )
+                break
+            else:
+                continue
         else:
-            raise ValueError(f'portal_poses are not adjacent! {first}, {second}')
+            raise ValueError(f'no adjacent entry_portal_poses! {entry_portal_poses}')
 
         for candidate in candidates:
             candidate = tuple(int(part) for part in candidate)
@@ -100,14 +108,38 @@ class DonutMaze:
             if coords in self._maze:
                 yield coords
 
-    def _get_portal_exit(self, first_portal_symbol, first_portal_part_pos, second_portal_symbol, second_portal_part_pos, floor):
-        portal_title = first_portal_symbol + second_portal_symbol
-        portal_entry_pos = first_portal_part_pos
-        next_floor = self._get_next_floor(portal_entry_pos, floor, portal_title)
+    @staticmethod
+    def _get_portal_key(portal_title, first_portal_part_pos):
+        return portal_title, first_portal_part_pos
 
-        if portal_title in self._portal_title2exit_pos:
-            exit_pos = self._portal_title2exit_pos[portal_title]
-            return self._return_portal_exit(exit_pos, next_floor, portal_title)
+    @staticmethod
+    def _get_portal_title(first_portal_symbol, first_portal_part_pos, second_portal_symbol, second_portal_part_pos):
+        # sort portal symbols in a readable order
+        if first_portal_part_pos[0] < second_portal_part_pos[0]:
+            return first_portal_symbol + second_portal_symbol
+        elif first_portal_part_pos[1] < second_portal_part_pos[1]:
+            return first_portal_symbol + second_portal_symbol
+        return second_portal_symbol + first_portal_symbol
+
+    def _get_portal_exit(self, first_portal_symbol, first_portal_part_pos, second_portal_symbol, second_portal_part_pos, floor):
+        portal_title = self._get_portal_title(first_portal_symbol, first_portal_part_pos, second_portal_symbol, second_portal_part_pos)
+
+        if portal_title == Tile.entry_portal * 2:
+            return None
+        if portal_title == Tile.exit_portal * 2:
+            if floor:
+                return None
+            # raise RuntimeError('win? add one level and commit answer?')
+            return Tile.end, floor, Tile.exit_portal * 2
+
+        next_floor = self._get_next_floor(first_portal_part_pos, floor, portal_title)
+        if next_floor < 0:
+            return None
+
+        portal_key = self._get_portal_key(portal_title, first_portal_part_pos)
+        if portal_key in self._portal2exit_pos:
+            exit_pos = self._portal2exit_pos[portal_key]
+            return self._return_portal_exit(exit_pos, next_floor, portal_title, portal_key)
 
         # find pos of second portal part symbol
         symbol_poses = []
@@ -128,7 +160,7 @@ class DonutMaze:
                 symbol = self._maze[exit_pos_candidate]
 
                 if self._is_free(symbol):
-                    return self._return_portal_exit(exit_pos_candidate, next_floor, portal_title)
+                    return self._return_portal_exit(exit_pos_candidate, next_floor, portal_title, portal_key)
 
                 elif self._is_portal(symbol):
                     exit_portal_part2 = exit_pos_candidate
@@ -136,22 +168,22 @@ class DonutMaze:
             for exit_pos_candidate in self._get_adjacent_coordinates(exit_portal_part2):
                 symbol = self._maze.get(exit_pos_candidate)
                 if self._is_free(symbol):
-                    return self._return_portal_exit(exit_pos_candidate, next_floor, portal_title)
+                    return self._return_portal_exit(exit_pos_candidate, next_floor, portal_title, portal_key)
             else:
                 raise ValueError()
         else:
             raise NoSolution()
 
-    def _return_portal_exit(self, exit_pos, next_floor, portal_title):
-        if portal_title not in self._portal_title2exit_pos:
-            self._portal_title2exit_pos[portal_title] = exit_pos
-        elif self._portal_title2exit_pos[portal_title] != exit_pos:
+    def _return_portal_exit(self, exit_pos, next_floor, portal_title, portal_key):
+        if portal_key not in self._portal2exit_pos:
+            self._portal2exit_pos[portal_key] = exit_pos
+        elif self._portal2exit_pos[portal_key] != exit_pos:
             raise ValueError('bad caching!')
 
         return exit_pos, next_floor, portal_title
 
-    def _get_next_floor(self, portal_entry_pos, floor, portal_title):
-        x, y = portal_entry_pos
+    def _get_next_floor(self, first_portal_part_pos, floor, portal_title):
+        x, y = first_portal_part_pos
         if not self._recursive:
             shift = 0
         elif 2 < x < self._maze_width - 3 and 2 < y < self._maze_height - 3:
@@ -176,20 +208,188 @@ class DonutMaze:
                 yield adjacent_node, floor, None
 
             elif self._is_portal(symbol):
-                if symbol == Tile.entry_portal:
-                    continue
-                if symbol == Tile.exit_portal:
-                    if not floor:
-                        yield adjacent_node, floor, None
-                    continue
                 second_portal_part_pos = (x0 + (x - x0) * 2, (y0 + (y - y0) * 2))
                 second_portal_symbol = self._maze[second_portal_part_pos]
-                yield self._get_portal_exit(symbol, adjacent_node, second_portal_symbol, second_portal_part_pos, floor)
+                portal_exit = self._get_portal_exit(symbol, adjacent_node, second_portal_symbol, second_portal_part_pos, floor)
+                if portal_exit:
+                    yield portal_exit
 
     def _is_complete(self, vertex):
-        return self._maze[vertex] == 'Z'
+        return vertex == Tile.end
 
-    # def _get_state(self, node, new_level, floor):
+    @staticmethod
+    def _is_portal_in_path(portal_title, expected_floor, expected_level, path):
+        for perm in itertools.permutations(portal_title, 2):
+            title = ''.join(perm)
+            for step in path:
+                vertex, floor, portal, level = step
+                if portal == title and floor == expected_floor and (level == expected_level if expected_level else True):
+                    return True
+        return False
+
+    @staticmethod
+    def _get_path_through_portals(path):
+        return [step for step in path if step[2]]
+
+    def _custom_check(self, floor, path):
+        # if abs(floor) > 10:
+        #     return False
+
+        if self._is_test and self._part_num == 2:
+            tst_steps = (
+                ('XF', 1, 16),
+                ('CK', 2, 27),
+                ('ZH', 3, 42),
+                ('WB', 4, 53),
+                ('IC', 5, 64),
+                ('RF', 6, 75),
+                ('NM', 7, 84),
+                ('LP', 8, 97),
+                ('FD', 9, 122),
+                ('XQ', 10, 131),
+                ('WB', 9, 136),
+                ('ZH', 8, 147),
+                ('CK', 7, 162),
+                ('XF', 6, 173),
+                ('OA', 5, 188),
+                ('CJ', 4, 197),
+                ('RE', 3, 206),
+                ('IC', 4, 211),
+                ('RF', 5, 222),
+                ('NM', 6, 231),
+                ('LP', 7, 244),
+                ('FD', 8, 269),
+                ('XQ', 9, 278),
+                ('WB', 8, 283),
+                ('ZH', 7, 294),
+                ('CK', 6, 309),
+                ('XF', 5, 320),
+                ('OA', 4, 335),
+                ('CJ', 3, 344),
+            )
+        elif not self._is_test and self._part_num == 2:
+            # misha lopotkov test
+            tst_steps = (
+                ('WN', 'outer', 1),
+                ('RV', 'outer', 2),
+                ('QT', 'outer', 3),
+                ('PY', 'outer', 4),
+                ('JX', 'outer', 5),
+                ('SI', 'outer', 6),
+                ('DV', 'outer', 7),
+                ('ZJ', 'outer', 8),
+                ('GR', 'outer', 9),
+                ('LE', 'outer', 10),
+                ('GS', 'outer', 11),
+                ('ZH', 'outer', 12),
+                ('OV', 'outer', 13),
+                ('ES', 'outer', 14),
+                ('OF', 'outer', 15),
+                ('PP', 'outer', 16),
+                ('MJ', 'outer', 17),
+                ('GM', 'outer', 18),
+                ('TW', 'outer', 19),
+                ('GH', 'outer', 20),
+                ('DS', 'outer', 21),
+                ('XC', 'outer', 22),
+                ('QT', 'inner', 21),
+                ('RV', 'inner', 20),
+                ('WN', 'inner', 19),
+                ('BL', 'inner', 18),
+                ('FZ', 'inner', 17),
+                ('JS', 'inner', 16),
+                ('WX', 'inner', 15),
+                ('XF', 'inner', 14),
+                ('QT', 'inner', 13),
+                ('RV', 'inner', 12),
+                ('WN', 'inner', 11),
+                ('BL', 'inner', 10),
+                ('FZ', 'inner', 9),
+                ('JS', 'inner', 8),
+                ('WX', 'inner', 7),
+                ('XF', 'inner', 6),
+                ('PY', 'outer', 7),
+                ('JX', 'outer', 8),
+                ('SI', 'outer', 9),
+                ('DV', 'outer', 10),
+                ('ZJ', 'outer', 11),
+                ('GR', 'outer', 12),
+                ('LE', 'outer', 13),
+                ('GS', 'outer', 14),
+                ('ZH', 'outer', 15),
+                ('OV', 'outer', 16),
+                ('ES', 'outer', 17),
+                ('OF', 'outer', 18),
+                ('PP', 'outer', 19),
+                ('MJ', 'outer', 20),
+                ('GM', 'outer', 21),
+                ('TW', 'outer', 22),
+                ('GH', 'outer', 23),
+                ('DS', 'outer', 24),
+                ('XC', 'outer', 25),
+                ('QT', 'inner', 24),
+                ('RV', 'inner', 23),
+                ('WN', 'inner', 22),
+                ('BL', 'inner', 21),
+                ('FZ', 'inner', 20),
+                ('JS', 'inner', 19),
+                ('WX', 'inner', 18),
+                ('XF', 'inner', 17),
+                ('QT', 'inner', 16),
+                ('RV', 'inner', 15),
+                ('WN', 'inner', 14),
+                ('BL', 'inner', 13),
+                ('FZ', 'inner', 12),
+                ('JS', 'inner', 11),
+                ('WX', 'inner', 10),
+                ('XF', 'inner', 9),
+                ('QT', 'inner', 8),
+                ('RV', 'inner', 7),
+                ('WN', 'inner', 6),
+                ('BL', 'inner', 5),
+                ('FZ', 'inner', 4),
+                ('JS', 'inner', 3),
+                ('WX', 'inner', 2),
+                ('XF', 'inner', 1),
+                # ('PY', 'outer', 2),
+                # ('JX', 'outer', 3),
+                # ('SI', 'outer', 4),
+                # ('DV', 'outer', 5),
+                # ('ZJ', 'outer', 6),
+                # ('GR', 'outer', 7),
+                # ('LE', 'outer', 8),
+                # ('GS', 'outer', 9),
+                # ('ZH', 'outer', 10),
+                # ('OV', 'outer', 11),
+                # ('ES', 'outer', 12),
+                # ('OF', 'outer', 13),
+                # ('PP', 'outer', 14),
+                # ('MJ', 'outer', 15),
+                # ('GM', 'outer', 16),
+                # ('TW', 'outer', 17)
+            )
+        else:
+            return True
+
+        if not path:
+            # nth to check yet
+            return True
+
+        for i, (expected_portal, expected_floor, expected_level) in enumerate(tst_steps):
+            if len(path) < i + 1:
+                # nth to check yet
+                return True
+
+            step = [path[i]]
+            if isinstance(expected_floor, str):
+                expected_floor = expected_level
+                expected_level = None
+            if not self._is_portal_in_path(expected_portal, expected_floor, expected_level, step):
+                return False
+
+        if len(path) > len(tst_steps):
+            breakpoint = None
+        return True
 
     def get_shortest_path(self):
         start_level = 0
@@ -201,15 +401,51 @@ class DonutMaze:
         }
         visit_order = [(start_level, start_floor, self._start)]
 
+        top_paths = []
+
         while queue:
             vertex, level, floor, path = queue.popleft()
 
             if self._is_complete(vertex):
+                # # lopotkov-style
+                _floor = 0
                 for step in path:
-                    if not step[-1]:
+                    vertex, next_floor, portal_title, level = step
+                    if not portal_title:
                         continue
-                    print(step)
-                return level - 1
+                    print((portal_title, 'inner' if next_floor < _floor else 'outer', next_floor))
+                    _floor = next_floor
+                print('***'*10)
+
+                # for analyze in sublime
+                prev_was_portal = False
+                for step in path:
+                    vertex, next_floor, portal_title, level = step
+                    _sublime_cursor = f':{vertex[1] + 5}:{vertex[0] + 1}'
+                    if not portal_title:
+                        if prev_was_portal:
+                            print(_sublime_cursor)
+                            prev_was_portal = False
+                            print()
+                        continue
+                    prev_was_portal = True
+                    print(_sublime_cursor)
+                    print(', '.join((str(x) for x in (portal_title, next_floor, level))))
+                print('==='*10)
+                #
+                # for step in path:
+                #     print(step)
+                # if self._recursive:
+                #     return level
+
+                # top_paths.append(level)
+                # if len(top_paths) == 3:
+                #     return top_paths
+                # continue
+                return level
+
+            # if not self._custom_check(floor, self._get_path_through_portals(path)):
+            #     continue
 
             for xy, next_floor, portal_title in self._get_free_adjacent_nodes(vertex, floor):
                 _path = list(path)
@@ -221,9 +457,9 @@ class DonutMaze:
                 seen[(next_floor, xy)] = new_level
 
                 # if next_floor != floor:
-                visit_order.append((level, floor, vertex))
+                visit_order.append((level, next_floor, vertex))
 
-                _path.append((vertex, floor, portal_title))
+                _path.append((vertex, next_floor, portal_title, level))
 
                 queue.append(
                     (xy, new_level, next_floor, _path)
@@ -270,23 +506,67 @@ def test(test_num, recursive=False):
             expected = 26
         else:
             expected = 23
+    elif test_num == 2:
+        _inp = '''
+             Z L X W       C                 
+             Z P Q B       K                 
+  ###########.#.#.#.#######.###############  
+  #...#.......#.#.......#.#.......#.#.#...#  
+  ###.#.#.#.#.#.#.#.###.#.#.#######.#.#.###  
+  #.#...#.#.#...#.#.#...#...#...#.#.......#  
+  #.###.#######.###.###.#.###.###.#.#######  
+  #...#.......#.#...#...#.............#...#  
+  #.#########.#######.#.#######.#######.###  
+  #...#.#    F       R I       Z    #.#.#.#  
+  #.###.#    D       E C       H    #.#.#.#  
+  #.#...#                           #...#.#  
+  #.###.#                           #.###.#  
+  #.#....OA                       WB..#.#..ZH
+  #.###.#                           #.#.#.#  
+CJ......#                           #.....#  
+  #######                           #######  
+  #.#....CK                         #......IC
+  #.###.#                           #.###.#  
+  #.....#                           #...#.#  
+  ###.###                           #.#.#.#  
+XF....#.#                         RF..#.#.#  
+  #####.#                           #######  
+  #......CJ                       NM..#...#  
+  ###.#.#                           #.###.#  
+RE....#.#                           #......RF
+  ###.###        X   X       L      #.#.#.#  
+  #.....#        F   Q       P      #.#.#.#  
+  ###.###########.###.#######.#########.###  
+  #.....#...#.....#.......#...#.....#.#...#  
+  #####.#.###.#######.#######.###.###.#.#.#  
+  #.......#.......#.#.#.#.#...#...#...#.#.#  
+  #####.###.#####.#.#.#.#.###.###.#.###.###  
+  #.......#.....#.#...#...............#...#  
+  #############.#.#.###.###################  
+               A O F   N                     
+               A A D   M                     
+               '''
+        if recursive:
+            expected = 396
+        else:
+            raise NotImplementedError()
     else:
         raise NotImplementedError(f'unknown test_num = {test_num}')
 
     inp = _parse_input(_inp)
-    res = DonutMaze(inp, to_print=True, recursive=recursive).get_shortest_path()
+    res = DonutMaze(test_num, inp, is_test=True, to_print=True, recursive=recursive).get_shortest_path()
     assert res == expected, 'test{} failed!: {}'.format(test_num, res)
     return 'test{} {}ok'.format(test_num, '(recursice) ' if recursive else '')
 
 
 def run(part_num, *args, **kwargs):
     if part_num == 1:
-        res = DonutMaze(*args, **kwargs).get_shortest_path()
+        res = DonutMaze(part_num, *args, **kwargs).get_shortest_path()
         expected = 498
     elif part_num == 2:
-        res = DonutMaze(*args, recursive=True, **kwargs).get_shortest_path()
+        res = DonutMaze(part_num, *args, recursive=True, **kwargs).get_shortest_path()
         expected = 'unknown'
-        if res <= 508:
+        if res <= 4122:
             raise ValueError('run{} = {}: answer is too low!'.format(part_num, res))
     else:
         raise NotImplementedError(f'unknown part_num = {part_num}')
@@ -302,6 +582,7 @@ if __name__ == '__main__':
         # test(1),
         # run(1),
         # test(1, recursive=True),
-        run(2),
+        test(2, recursive=True),
+        # run(2),
     ):
         print(_res)
